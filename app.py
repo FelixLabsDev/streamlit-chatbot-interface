@@ -14,7 +14,7 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Ensure openai_model is initialized in session state
 if "openai_model" not in st.session_state:
-    st.session_state["openai_model"] = "gpt-3.5-turbo"
+    st.session_state["openai_model"] = "gpt-4o-mini"
 
 
 # Load chat history from shelve file
@@ -54,13 +54,16 @@ if prompt := st.chat_input("How can I help?"):
     with st.chat_message("assistant", avatar=BOT_AVATAR):
         message_placeholder = st.empty()
         full_response = ""
-        for response in client.chat.completions.create(
-            model=st.session_state["openai_model"],
-            messages=st.session_state["messages"],
-            stream=True,
-        ):
-            full_response += response.choices[0].delta.content or ""
-            message_placeholder.markdown(full_response + "|")
+        # for response in client.chat.completions.create( model=st.session_state["openai_model"],
+        #                                                 messages=st.session_state["messages"],
+        #                                                 stream=True,
+        #                                                 ):
+        #     full_response += response.choices[0].delta.content or ""
+        #     message_placeholder.markdown(full_response + "|")
+
+        # My response logic
+        
+
         message_placeholder.markdown(full_response)
     st.session_state.messages.append({"role": "assistant", "content": full_response})
 

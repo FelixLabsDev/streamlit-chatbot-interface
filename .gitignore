@@ -90,3 +90,10 @@ target/
 # Exlcude the database file
 .db
 /data
+
+/venv
+chat_history.bak
+chat_history.dat
+chat_history.dir
+LICENCE.txt
+LICENCE.txt
