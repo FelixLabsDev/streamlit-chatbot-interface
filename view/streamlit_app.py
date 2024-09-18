@@ -54,18 +54,22 @@ if prompt := st.chat_input("How can I help?"):
     with st.chat_message("assistant", avatar=BOT_AVATAR):
         message_placeholder = st.empty()
         full_response = ""
-        # for response in client.chat.completions.create( model=st.session_state["openai_model"],
-        #                                                 messages=st.session_state["messages"],
-        #                                                 stream=True,
-        #                                                 ):
-        #     full_response += response.choices[0].delta.content or ""
-        #     message_placeholder.markdown(full_response + "|")
+        ### replace this section
+        for response in client.chat.completions.create( model=st.session_state["openai_model"],
+                                                        messages=st.session_state["messages"],
+                                                        stream=True,
+                                                        ):
+            full_response += response.choices[0].delta.content or ""
+            message_placeholder.markdown(full_response + "|")
+        ### till here
 
         # My response logic
-        
+
 
         message_placeholder.markdown(full_response)
     st.session_state.messages.append({"role": "assistant", "content": full_response})
 
 # Save chat history after each interaction
 save_chat_history(st.session_state.messages)
+
+# streamlit run app.py
