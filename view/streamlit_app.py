@@ -3,14 +3,27 @@ import streamlit as st
 from dotenv import load_dotenv
 import os
 import shelve
+import argparse
+from tomerbot.graphs import Graph
 
 load_dotenv()
+
+# Argument parser to handle command-line arguments
+parser = argparse.ArgumentParser(description="Streamlit Chatbot Interface")
+parser.add_argument('--clean', action='store_true', help="Delete chat history before startup")
+args = parser.parse_args()
+
 
 st.title("Streamlit Chatbot Interface")
 
 USER_AVATAR = "👤"
 BOT_AVATAR = "🤖"
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+base_agent_path = r"N:\Dev\1_FelixLabs\WhatsappTomerBot\tomerbot"
+
+if "graph" not in st.session_state:
+    st.session_state.graph = Graph(base_path=base_agent_path, clean=True)
 
 # Ensure openai_model is initialized in session state
 if "openai_model" not in st.session_state:
@@ -19,13 +32,13 @@ if "openai_model" not in st.session_state:
 
 # Load chat history from shelve file
 def load_chat_history():
-    with shelve.open("chat_history") as db:
+    with shelve.open(".streamlit/chat_history") as db:
         return db.get("messages", [])
 
 
 # Save chat history to shelve file
 def save_chat_history(messages):
-    with shelve.open("chat_history") as db:
+    with shelve.open(".streamlit/chat_history") as db:
         db["messages"] = messages
 
 
@@ -33,11 +46,19 @@ def save_chat_history(messages):
 if "messages" not in st.session_state:
     st.session_state.messages = load_chat_history()
 
+def delete_chat_history():
+    st.session_state.messages = []
+    save_chat_history([])
+
+# Clean history before loading if --clean argument is passed
+if args.clean and "clean" not in st.session_state:
+    st.session_state.clean = True 
+    delete_chat_history()
+
 # Sidebar with a button to delete chat history
 with st.sidebar:
     if st.button("Delete Chat History"):
-        st.session_state.messages = []
-        save_chat_history([])
+        delete_chat_history()
 
 # Display chat messages
 for message in st.session_state.messages:
@@ -55,15 +76,16 @@ if prompt := st.chat_input("How can I help?"):
         message_placeholder = st.empty()
         full_response = ""
         ### replace this section
-        for response in client.chat.completions.create( model=st.session_state["openai_model"],
-                                                        messages=st.session_state["messages"],
-                                                        stream=True,
-                                                        ):
-            full_response += response.choices[0].delta.content or ""
-            message_placeholder.markdown(full_response + "|")
+        # for response in client.chat.completions.create( model=st.session_state["openai_model"],
+        #                                                 messages=st.session_state["messages"],
+        #                                                 stream=True,
+        #                                                 ):
+        #     full_response += response.choices[0].delta.content or ""
+        #     message_placeholder.markdown(full_response + "|")
         ### till here
 
         # My response logic
+        full_response = st.session_state.graph.invoke_graph(prompt, "123", "test")
 
 
         message_placeholder.markdown(full_response)
@@ -72,4 +94,5 @@ if prompt := st.chat_input("How can I help?"):
 # Save chat history after each interaction
 save_chat_history(st.session_state.messages)
 
-# streamlit run app.py
+# run from view dir
+# streamlit run streamlit_app.py -- --clean
