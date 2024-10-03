@@ -4,14 +4,31 @@ from dotenv import load_dotenv
 import os
 import shelve
 import argparse
-from tomerbot.graphs import Graph
+from tomerbot.graphs import Graph   
+import requests
+import json
 
 load_dotenv()
 
+    
+# Function to send user input to Flask
+def send_input(user_input):
+    try:
+        # Sending the user input to Flask and receiving AI response
+        response = requests.post("http://localhost:5000/input", json={"user_input": user_input})
+        if response.status_code == 200:
+            return response.json().get("ai_response", "No AI response")
+        else:
+            return "Error: Failed to get AI response"
+    except requests.exceptions.RequestException as e:
+        return f"Error: {str(e)}"
+
+        
 # Argument parser to handle command-line arguments
 parser = argparse.ArgumentParser(description="Streamlit Chatbot Interface")
 parser.add_argument('--clean', action='store_true', help="Delete chat history before startup")
 args = parser.parse_args()
+
 
 
 st.title("Streamlit Chatbot Interface")
@@ -22,8 +39,17 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 base_agent_path = r"N:\Dev\1_FelixLabs\WhatsappTomerBot\tomerbot"
 
-if "graph" not in st.session_state:
-    st.session_state.graph = Graph(base_path=base_agent_path, clean=True)
+
+############################################
+############# Under construction ###########
+############################################
+# if "graph" not in st.session_state:
+#     st.session_state.graph = Graph(base_path=base_agent_path, clean=True)
+############################################
+############################################
+############################################
+
+
 
 # Ensure openai_model is initialized in session state
 if "openai_model" not in st.session_state:
@@ -32,6 +58,7 @@ if "openai_model" not in st.session_state:
 
 # Load chat history from shelve file
 def load_chat_history():
+    print(os.getcwd())
     with shelve.open(".streamlit/chat_history") as db:
         return db.get("messages", [])
 
@@ -68,6 +95,7 @@ for message in st.session_state.messages:
 
 # Main chat interface
 if prompt := st.chat_input("How can I help?"):
+
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user", avatar=USER_AVATAR):
         st.markdown(prompt)
@@ -85,7 +113,8 @@ if prompt := st.chat_input("How can I help?"):
         ### till here
 
         # My response logic
-        full_response = st.session_state.graph.invoke_graph(prompt, "123", "test")
+        # full_response = st.session_state.graph.invoke_graph(prompt, "123", "test")
+        full_response = send_input(prompt)
 
 
         message_placeholder.markdown(full_response)
