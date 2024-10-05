@@ -1,64 +1,33 @@
-from openai import OpenAI
+# from openai import OpenAI
 import streamlit as st
 from dotenv import load_dotenv
 import os
 import shelve
 import argparse
-from tomerbot.graphs import Graph   
-import requests
-import json
+from st_server import send_input
 
 load_dotenv()
 
-    
-# Function to send user input to Flask
-def send_input(user_input):
-    try:
-        # Sending the user input to Flask and receiving AI response
-        response = requests.post("http://localhost:5000/input", json={"user_input": user_input})
-        if response.status_code == 200:
-            return response.json().get("ai_response", "No AI response")
-        else:
-            return "Error: Failed to get AI response"
-    except requests.exceptions.RequestException as e:
-        return f"Error: {str(e)}"
-
-        
 # Argument parser to handle command-line arguments
 parser = argparse.ArgumentParser(description="Streamlit Chatbot Interface")
 parser.add_argument('--clean', action='store_true', help="Delete chat history before startup")
 args = parser.parse_args()
 
 
-
 st.title("Streamlit Chatbot Interface")
 
 USER_AVATAR = "👤"
 BOT_AVATAR = "🤖"
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-base_agent_path = r"N:\Dev\1_FelixLabs\WhatsappTomerBot\tomerbot"
-
-
-############################################
-############# Under construction ###########
-############################################
-# if "graph" not in st.session_state:
-#     st.session_state.graph = Graph(base_path=base_agent_path, clean=True)
-############################################
-############################################
-############################################
-
+# client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
 # Ensure openai_model is initialized in session state
-if "openai_model" not in st.session_state:
-    st.session_state["openai_model"] = "gpt-4o-mini"
+# if "openai_model" not in st.session_state:
+#     st.session_state["openai_model"] = "gpt-4o-mini"
 
 
 # Load chat history from shelve file
 def load_chat_history():
-    print(os.getcwd())
     with shelve.open(".streamlit/chat_history") as db:
         return db.get("messages", [])
 
@@ -123,5 +92,4 @@ if prompt := st.chat_input("How can I help?"):
 # Save chat history after each interaction
 save_chat_history(st.session_state.messages)
 
-# run from view dir
-# streamlit run streamlit_app.py -- --clean
+# streamlit run streamlit_chat_ui.py -- --clean
