@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 import os
 import shelve
 import argparse
-from view import send_input
+from src.streamlit_view.view import send_input
 
 load_dotenv()
 
