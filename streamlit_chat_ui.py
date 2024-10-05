@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 import os
 import shelve
 import argparse
-from st_server import send_input
+from view import send_input
 
 load_dotenv()
 
