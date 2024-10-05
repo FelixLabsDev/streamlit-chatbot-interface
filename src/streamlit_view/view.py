@@ -54,7 +54,7 @@ def send_input(user_input):
 def run_streamlit():
     try:
         # Replace 'your_command' with the actual command you want to run
-        command = ['streamlit', 'run', 'streamlit_chat_ui.py', '--', '--clean']  # Example: ['echo', 'Hello, World!']
+        command = ['streamlit', 'run', '-m','streamlit_view.streamlit_chat_ui', '--', '--clean']  
         subprocess.run(command, check=True)
     except subprocess.CalledProcessError as e:
         print(f"Error occurred while running command: {e}")
