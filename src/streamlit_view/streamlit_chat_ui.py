@@ -28,13 +28,13 @@ BOT_AVATAR = "🤖"
 
 # Load chat history from shelve file
 def load_chat_history():
-    with shelve.open(".streamlit/chat_history") as db:
+    with shelve.open("view/.streamlit/chat_history") as db:
         return db.get("messages", [])
 
 
 # Save chat history to shelve file
 def save_chat_history(messages):
-    with shelve.open(".streamlit/chat_history") as db:
+    with shelve.open("view/.streamlit/chat_history") as db:
         db["messages"] = messages
 
 
