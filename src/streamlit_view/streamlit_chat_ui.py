@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 import os
 import shelve
 import argparse
-from view import send_input
+from view import send_input, delete_history
 
 load_dotenv()
 
@@ -43,8 +43,11 @@ if "messages" not in st.session_state:
     st.session_state.messages = load_chat_history()
 
 def delete_chat_history():
+    # delete history locally (streamlit)
     st.session_state.messages = []
     save_chat_history([])
+    # delete history from the server (agent)
+    delete_history() 
 
 # Clean history before loading if --clean argument is passed
 if args.clean and "clean" not in st.session_state:

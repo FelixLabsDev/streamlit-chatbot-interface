@@ -15,7 +15,8 @@ def generate_ai_response(user_input):
     response = graph.invoke_graph(user_input, "052", "eden")
     return response
     # return "testset"
-    
+
+
 # Endpoint to receive user input and return AI-generated response
 @app.route('/input', methods=['POST'])
 def receive_input():
@@ -30,9 +31,22 @@ def receive_input():
     
     return jsonify({"status": "error", "message": "No input received"}), 400
 
+# Endpoint to delete chat history
+@app.route('/delete_history', methods=['POST'])
+def delete_history():
+    try:
+        # Delete chat history
+        graph.delete_chat_history()
+        # Return the AI response back to Streamlit
+        return jsonify({"status": "success", "graph_response": "graph history deleted"}), 200
+    except Exception as e:
+        print(f"Error occurred while deleting chat history: {e}")
+        return jsonify({"status": "error", "Error": str(e)}), 400
+
+
 # Function to run the Flask app
 def run_flask():
-    app.run(port=5000)
+    app.run(port=5000, debug=True,  use_reloader=False)
 
 def run_view():
     # Start Flask app in a separate thread

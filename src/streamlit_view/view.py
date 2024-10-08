@@ -20,6 +20,18 @@ def send_input(user_input):
         return f"Error: {str(e)}"
 
 
+# Function to delete chat history
+def delete_history():
+    try:
+        # Sending the user input to Flask and receiving AI response
+        response = requests.post("http://localhost:5000/delete_history")
+        if response.status_code == 200:
+            return response.json().get("flask_server_response", "history not deleted")
+        else:
+            return "Error: Failed to delete chat history"
+    except requests.exceptions.RequestException as e:
+        return f"Error: {str(e)}"
+
 def run_streamlit():
     try:
         # Replace 'your_command' with the actual command you want to run
