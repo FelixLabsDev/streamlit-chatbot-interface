@@ -15,14 +15,9 @@ parser.add_argument('--title', type=str, default="Streamlit Chatbot Interface", 
 args = parser.parse_args()
 
 
-<<<<<<< Updated upstream:view/streamlit_chat_ui.py
-
-st.title("Streamlit Chatbot Interface")
-=======
 # Use the title argument to set the title of the Streamlit app
 st.title(args.title)
 
->>>>>>> Stashed changes:src/streamlit_view/streamlit_chat_ui.py
 
 USER_AVATAR = "👤"
 BOT_AVATAR = "🤖"
