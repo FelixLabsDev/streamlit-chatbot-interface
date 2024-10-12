@@ -11,10 +11,18 @@ load_dotenv()
 # Argument parser to handle command-line arguments
 parser = argparse.ArgumentParser(description="Streamlit Chatbot Interface")
 parser.add_argument('--clean', action='store_true', help="Delete chat history before startup")
+parser.add_argument('--title', type=str, default="Streamlit Chatbot Interface", help="Set the title of the app")
 args = parser.parse_args()
 
 
+<<<<<<< Updated upstream:view/streamlit_chat_ui.py
+
 st.title("Streamlit Chatbot Interface")
+=======
+# Use the title argument to set the title of the Streamlit app
+st.title(args.title)
+
+>>>>>>> Stashed changes:src/streamlit_view/streamlit_chat_ui.py
 
 USER_AVATAR = "👤"
 BOT_AVATAR = "🤖"
@@ -64,6 +72,8 @@ for message in st.session_state.messages:
     avatar = USER_AVATAR if message["role"] == "user" else BOT_AVATAR
     with st.chat_message(message["role"], avatar=avatar):
         st.markdown(message["content"])
+
+
 
 # Main chat interface
 if prompt := st.chat_input("How can I help?"):

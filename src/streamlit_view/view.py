@@ -32,14 +32,14 @@ def delete_history():
     except requests.exceptions.RequestException as e:
         return f"Error: {str(e)}"
 
-def run_streamlit():
+def run_streamlit(title):
     try:
         # Replace 'your_command' with the actual command you want to run
-        command = ['streamlit', 'run', filename, '--', '--clean']  
+        command = ['streamlit', 'run', filename, '--', '--clean', '--title', title]  
         subprocess.run(command, check=True)
     except subprocess.CalledProcessError as e:
         print(f"Error occurred while running command: {e}")
 
 
-def run():
-    run_streamlit()
+def run(title="Streamlit Chatbot Interface"):
+    run_streamlit(title)
