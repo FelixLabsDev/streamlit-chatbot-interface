@@ -31,7 +31,13 @@ BOT_AVATAR = "🤖"
 
 # Load chat history from shelve file
 def load_chat_history():
-    with shelve.open("view/.streamlit/chat_history") as db:
+    dir_path = "view/.streamlit"
+    
+    # Create the directory if it doesn't exist
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+    
+    with shelve.open(f"{dir_path}/chat_history") as db:
         return db.get("messages", [])
 
 
