@@ -8,6 +8,7 @@ from src.streamlit_view.view import run
 app = Flask(__name__)
 
 base_agent_path = r""
+print("Loading new graph...")
 graph = Graph(base_path=base_agent_path, clean=True)
 
 
@@ -45,7 +46,7 @@ def delete_history():
         ), 200
     except Exception as e:
         print(f"Error occurred while deleting chat history: {e}")
-        return jsonify({"status": "error", "Error": str(e)}), 400
+        return jsonify({"status": "error", "Error": str(e)}), 400   
 
 
 # Function to run the Flask app
@@ -56,9 +57,7 @@ def run_flask():
 def run_view():
     # Start Flask app in a separate thread
     flask_thread = threading.Thread(target=run_flask)
-    flask_thread.daemon = (
-        True  # This makes the Flask thread exit when the main program exits
-    )
+    flask_thread.daemon = True  # This makes the Flask thread exit when the main program exits
     flask_thread.start()
 
     # Start Streamlit app
