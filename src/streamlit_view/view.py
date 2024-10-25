@@ -3,7 +3,7 @@ import subprocess
 import subprocess
 import requests
 import logging
-from src.streamlit_view.view_configurations import define_endpoints, endpoint_blueprint
+from .view_configurations import define_endpoints, endpoint_blueprint
 
 
 class View:
