@@ -96,10 +96,6 @@ chat_history.bak
 chat_history.dat
 chat_history.dir
 LICENCE.txt
-LICENCE.txt
-<<<<<<< Updated upstream
-=======
 /configs
 activate_venv.bat
->>>>>>> Stashed changes
 update_private_packages.bat

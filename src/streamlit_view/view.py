@@ -1,17 +1,47 @@
 import os
+import subprocess
 from flask import Flask, request, jsonify
 import subprocess
 import threading
 import requests
-        
-filename = os.path.join(os.path.dirname(__file__), 'streamlit_chat_ui.py')
+import logging
+from view_configurations import define_endpoints, endpoint_blueprint
 
 
-# Function to send user input to Flask
+class View:
+    def __init__(self, app, view_callback, title="Streamlit Chatbot Interface"):
+        logging.info("Initializing View class")
+        define_endpoints(view_callback)
+        app.register_blueprint(endpoint_blueprint)
+        # self.run(title=title)
+        pass
+
+    def send_message(self, chat_id, message):
+        return message
+
+    def run_streamlit(self, title):
+        try:
+            filename = os.path.join(os.path.dirname(__file__), "streamlit_chat_ui.py")
+            command = ["streamlit", "run", filename, "--", "--clean"]
+            env = os.environ.copy()
+            env["PYTHONPATH"] = os.path.abspath(
+                os.path.join(os.path.dirname(__file__), "../../")
+            )  # Set project root as PYTHONPATH
+
+            subprocess.run(command, check=True, env=env)
+        except subprocess.CalledProcessError as e:
+            print(f"Error occurred while running command: {e}")
+
+    def run(self, title="Streamlit Chatbot Interface"):
+        self.run_streamlit(title)
+
+
 def send_input(user_input):
     try:
         # Sending the user input to Flask and receiving AI response
-        response = requests.post("http://localhost:5000/input", json={"user_input": user_input})
+        response = requests.post(
+            "http://localhost:5000/input", json={"user_input": user_input}
+        )
         if response.status_code == 200:
             return response.json().get("ai_response", "No AI response")
         else:
@@ -20,7 +50,6 @@ def send_input(user_input):
         return f"Error: {str(e)}"
 
 
-# Function to delete chat history
 def delete_history():
     try:
         # Sending the user input to Flask and receiving AI response
@@ -31,15 +60,3 @@ def delete_history():
             return "Error: Failed to delete chat history"
     except requests.exceptions.RequestException as e:
         return f"Error: {str(e)}"
-
-def run_streamlit(title):
-    try:
-        # Replace 'your_command' with the actual command you want to run
-        command = ['streamlit', 'run', filename, '--', '--clean', '--title', title]  
-        subprocess.run(command, check=True)
-    except subprocess.CalledProcessError as e:
-        print(f"Error occurred while running command: {e}")
-
-
-def run(title="Streamlit Chatbot Interface"):
-    run_streamlit(title)

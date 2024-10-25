@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="streamlit_view",
-    version="1.0.6",
+    version="1.1.0",
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     install_requires=[
