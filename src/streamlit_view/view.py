@@ -1,11 +1,9 @@
 import os
 import subprocess
-from flask import Flask, request, jsonify
 import subprocess
-import threading
 import requests
 import logging
-from view_configurations import define_endpoints, endpoint_blueprint
+from src.streamlit_view.view_configurations import define_endpoints, endpoint_blueprint
 
 
 class View:
@@ -14,7 +12,6 @@ class View:
         define_endpoints(view_callback)
         app.register_blueprint(endpoint_blueprint)
         # self.run(title=title)
-        pass
 
     def send_message(self, chat_id, message):
         return message
@@ -22,7 +19,7 @@ class View:
     def run_streamlit(self, title):
         try:
             filename = os.path.join(os.path.dirname(__file__), "streamlit_chat_ui.py")
-            command = ["streamlit", "run", filename, "--", "--clean"]
+            command = ["streamlit", "run", filename, "--", "--clean", "--title", title]
             env = os.environ.copy()
             env["PYTHONPATH"] = os.path.abspath(
                 os.path.join(os.path.dirname(__file__), "../../")

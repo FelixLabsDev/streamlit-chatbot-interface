@@ -13,7 +13,7 @@ def define_endpoints(view_callback):
             # Generate AI response based on the user input
             data_dict = {
                 "type": "text",
-                "chat_id": "streamlit-demo",
+                "chat_id": "69420",
                 "text": user_input
             }
             ai_response = view_callback(data_dict)
@@ -31,7 +31,7 @@ def define_endpoints(view_callback):
             # Delete chat history
             data_dict = {
                 "type": "delete_history", 
-                "chat_id": "streamlit-demo"
+                "chat_id": "69420"
             }
             view_callback(data_dict)
             # Return the AI response back to Streamlit
