@@ -19,7 +19,8 @@ class View:
     def run_streamlit(self, title):
         try:
             filename = os.path.join(os.path.dirname(__file__), "streamlit_chat_ui.py")
-            command = ["streamlit", "run", filename, "--", "--clean", "--title", title]
+            # command = ["streamlit", "run", filename, "--", "--clean", "--title", title]
+            command = ["streamlit", "run", filename, "--", "--title", title]
             env = os.environ.copy()
             env["PYTHONPATH"] = os.path.abspath(
                 os.path.join(os.path.dirname(__file__), "../../")
