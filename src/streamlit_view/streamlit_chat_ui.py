@@ -7,6 +7,7 @@ import argparse
 import sys
 import os
 from pathlib import Path
+import logging
 #######################################################################################################
 #######################################################################################################
 
@@ -41,6 +42,10 @@ from streamlit_view.view import send_input, delete_history
 
 load_dotenv()
 
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
 # Argument parser to handle command-line arguments
 parser = argparse.ArgumentParser(description="Streamlit Chatbot Interface")
 parser.add_argument('--clean', action='store_true', help="Delete chat history before startup")
@@ -51,6 +56,7 @@ args = parser.parse_args()
 # Use the title argument to set the title of the Streamlit app
 st.title(args.title)
 
+logger.info("Streamlit app has started")
 
 USER_AVATAR = "👤"
 BOT_AVATAR = "🤖"

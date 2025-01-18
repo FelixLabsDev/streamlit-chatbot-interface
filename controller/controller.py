@@ -1,12 +1,13 @@
 from agent_ti import Graph
 from src.streamlit_view.view import View
-from flask import Flask
+from fastapi import FastAPI
 import logging
+import uvicorn
 
 class Orchestrator():
     def __init__(self):
-        self.app = Flask(__name__)  # Create the Flask app instance
-        self.app.logger.setLevel(logging.INFO)
+        self.app = FastAPI()  # Create the FastAPI app instance
+        self.logger = logging.getLogger("Orchestrator")
 
         self.model = Graph(clean=True, DEBUG=True)
         self.view = View(self.app, self.view_callback)
@@ -31,4 +32,7 @@ class Orchestrator():
         return self.view.send_message(data_dict["chat_id"], model_response)
         
     def run(self, **kwargs):
-        self.app.run(**kwargs)
+        uvicorn.run(self.app, **kwargs)  # Use uvicorn to run the FastAPI app
+
+    def run_view(self, title):
+        self.view.run(title)

@@ -1,13 +1,17 @@
-from flask import Blueprint, request, jsonify
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import JSONResponse
+import logging
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
-endpoint_blueprint = Blueprint("webhook", __name__)
-
-def define_endpoints(view_callback):
+def define_endpoints(app, view_callback):
     # Endpoint to receive user input and return AI-generated response
-    @endpoint_blueprint.route("/input", methods=["POST"])
-    def receive_input():
-        user_input = request.json.get("user_input")
+    @app.post("/input")
+    async def receive_input(request: Request):
+        logger.info("inside receive_input")
+        data = await request.json()
+        user_input = data.get("user_input")
 
         if user_input:
             # Generate AI response based on the user input
@@ -19,14 +23,13 @@ def define_endpoints(view_callback):
             ai_response = view_callback(data_dict)
 
             # Return the AI response back to Streamlit
-            return jsonify({"status": "success", "ai_response": ai_response}), 200
+            return JSONResponse({"status": "success", "ai_response": ai_response}, status_code=200)
 
-        return jsonify({"status": "error", "message": "No input received"}), 400
-
+        raise HTTPException(status_code=400, detail="No input received")
 
     # Endpoint to delete chat history
-    @endpoint_blueprint.route("/delete_history", methods=["POST"])
-    def delete_history():
+    @app.post("/delete_history")
+    async def delete_history():
         try:
             # Delete chat history
             data_dict = {
@@ -35,9 +38,7 @@ def define_endpoints(view_callback):
             }
             view_callback(data_dict)
             # Return the AI response back to Streamlit
-            return jsonify(
-                {"status": "success", "graph_response": "graph history deleted"}
-            ), 200
+            return JSONResponse({"status": "success", "graph_response": "graph history deleted"}, status_code=200)
         except Exception as e:
             print(f"Error occurred while deleting chat history: {e}")
-            return jsonify({"status": "error", "Error": str(e)}), 400
+            raise HTTPException(status_code=400, detail=str(e))

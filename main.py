@@ -3,20 +3,20 @@ import logging
 import threading
 
 
-# Function to run the Flask app
-def run_flask():
-    logging.info("Flask app started")
-    orchestrator.run(port=5000, host="0.0.0.0")
+# Function to run the FastAPI app
+def run_server(logger):
+    logger.info("FastAPI app started")
+    orchestrator.run(port=5051, host="0.0.0.0")
 
 
-def run_view():
-    # Start Flask app in a separate thread
-    flask_thread = threading.Thread(target=run_flask)
-    flask_thread.daemon = True  # This makes the Flask thread exit when the main program exits
-    flask_thread.start()
+def run_view(title="Bot name"):
+    # Start FastAPI app in a separate thread
+    fastapi_thread = threading.Thread(target=run_server, args=(orchestrator.logger,))
+    fastapi_thread.daemon = True  # This makes the FastAPI thread exit when the main program exits
+    fastapi_thread.start()
 
     # Start Streamlit app
-    orchestrator.view.run("BOT NAME")
+    orchestrator.run_view(title)
 
 if __name__ == "__main__":
     orchestrator = Orchestrator()
