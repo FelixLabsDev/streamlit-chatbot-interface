@@ -124,8 +124,10 @@ if prompt := st.chat_input("How can I help?"):
 
     with st.chat_message("assistant", avatar=BOT_AVATAR):
         message_placeholder = st.empty()
-        full_response = send_input(prompt)
-
+        full_response = send_input(prompt)        
+        # Handle response if it's a list
+        if isinstance(full_response, list) and len(full_response) > 0:
+            full_response = full_response[0]
 
         message_placeholder.markdown(full_response)
     st.session_state.messages.append({"role": "assistant", "content": full_response})

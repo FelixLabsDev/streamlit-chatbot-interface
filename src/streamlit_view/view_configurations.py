@@ -22,6 +22,12 @@ def define_endpoints(app, view_callback):
             }
             ai_response = view_callback(data_dict)
 
+            # Convert MessageResponse objects to dictionaries
+            if isinstance(ai_response, list):
+                ai_response = [msg.dict() for msg in ai_response]
+            elif hasattr(ai_response, 'dict'):
+                ai_response = ai_response.dict()
+
             # Return the AI response back to Streamlit
             return JSONResponse({"status": "success", "ai_response": ai_response}, status_code=200)
 

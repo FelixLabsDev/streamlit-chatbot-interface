@@ -14,7 +14,15 @@ class View:
         define_endpoints(app, view_callback)
         # self.run(title=title)
 
-    def send_message(self, chat_id, message):
+    def send_message(self, chat_id, message, chat_type="c"):
+        """Send a message to the chat
+        Args:
+            chat_id: The chat ID to send the message to
+            message: The message to send
+            chat_type: The type of chat (default: "c" for chat)
+        Returns:
+            The message that was sent
+        """
         return message
 
     def run_streamlit(self, title):
