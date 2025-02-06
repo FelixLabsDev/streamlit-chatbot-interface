@@ -28,14 +28,13 @@ def define_endpoints(app, view_callback):
 
         raise HTTPException(status_code=400, detail="No input received")
 
-    # Endpoint to delete chat history
-    @app.post("/delete_history")
+    # Endpoint to delete all chat history
+    @app.post("/delete_all_history")
     async def delete_history():
         try:
-            # Delete chat history
+            # Delete all chat history
             data_dict = {
                 "type": "delete_history", 
-                "chat_id": "69420"
             }
             view_callback(data_dict)
             # Return the AI response back to Streamlit
@@ -43,3 +42,19 @@ def define_endpoints(app, view_callback):
         except Exception as e:
             print(f"Error occurred while deleting chat history: {e}")
             raise HTTPException(status_code=400, detail=str(e))
+        
+    # Endpoint to delete chat history by chat ID
+    @app.post("/delete_chat")
+    async def delete_chat(request: Request):
+        data = await request.json()
+        chat_id = data.get("chat_id")
+        if chat_id:
+            # Delete chat history by chat ID
+            data_dict = {
+                "type": "delete_chat", 
+                "chat_id": chat_id
+            }
+            view_callback(data_dict)
+            # Return the AI response back to Streamlit
+            return JSONResponse({"status": "success", "graph_response": "chat history deleted"}, status_code=200)
+        raise HTTPException(status_code=400, detail="No chat ID received")

@@ -52,10 +52,21 @@ def send_input(user_input, chat_id):
         return f"Error: {str(e)}"
 
 
-def delete_history():
+def delete_all_history():
     try:
         # Sending the user input to FastAPI and receiving AI response
-        response = requests.post("http://localhost:5051/delete_history")
+        response = requests.post("http://localhost:5051/delete_all_history")
+        if response.status_code == 200:
+            return response.json().get("graph_response", "history not deleted")
+        else:
+            return "Error: Failed to delete all chat history"
+    except requests.exceptions.RequestException as e:
+        return f"Error: {str(e)}"
+
+def delete_chat(chat_id):
+    try:
+        # Sending the user input to FastAPI and receiving AI response
+        response = requests.post("http://localhost:5051/delete_chat", json={"chat_id": chat_id})
         if response.status_code == 200:
             return response.json().get("graph_response", "history not deleted")
         else:

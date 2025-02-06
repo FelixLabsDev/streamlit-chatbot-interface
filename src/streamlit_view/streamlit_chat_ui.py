@@ -36,7 +36,7 @@ if root_dir not in sys.path:
     sys.path.append(root_dir)
 
 # Now your imports should work
-from streamlit_view.view import send_input, delete_history
+from streamlit_view.view import send_input, delete_all_history, delete_chat
 
 #######################################################################################################
 #######################################################################################################
@@ -111,19 +111,18 @@ def delete_all_chat_histories():
     }
     st.session_state.current_chat_id = new_chat_id
     save_chat_history(st.session_state.chats, st.session_state.current_chat_id)
-    delete_history()
+    delete_all_history()
 
 with st.sidebar:
-    st.button("New Chat", on_click=lambda: (
-        st.session_state.chats.update({
-            (new_chat_id := generate_short_uuid()): {
-                "title": new_chat_id,
-                "messages": []
-            }
-        }),
-        setattr(st.session_state, 'current_chat_id', new_chat_id),
+    if st.button("New Chat"):
+        new_chat_id = generate_short_uuid()
+        st.session_state.chats[new_chat_id] = {
+            "title": new_chat_id,
+            "messages": []
+        }
+        st.session_state.current_chat_id = new_chat_id
         save_chat_history(st.session_state.chats, st.session_state.current_chat_id)
-    ))
+        st.rerun()
     
     st.write("---")
     st.subheader("Chat Sessions")
@@ -133,14 +132,16 @@ with st.sidebar:
         col1, col2 = st.columns([0.7, 0.3])
         
         with col1:
+            btn_type = "primary" if chat_id == st.session_state.current_chat_id else "secondary"
             if st.button(
                 chat["title"],
                 key=f"title_{chat_id}",
                 use_container_width=True,
-                type="primary" if chat_id == st.session_state.current_chat_id else "secondary"
+                type=btn_type
             ):
                 st.session_state.current_chat_id = chat_id
                 save_chat_history(st.session_state.chats, st.session_state.current_chat_id)
+                st.rerun()
         
         with col2:
             with st.popover("⋮"):
@@ -153,7 +154,6 @@ with st.sidebar:
                     st.session_state.chats[chat_id]["title"] = new_title
                     save_chat_history(st.session_state.chats, st.session_state.current_chat_id)
                 
-                # Export button
                 export_text = export_chat_to_text(chat["messages"])
                 st.download_button(
                     label="Export to TXT",
@@ -169,6 +169,7 @@ with st.sidebar:
                     type="primary"
                 ):
                     del st.session_state.chats[chat_id]
+                    delete_chat(chat_id)
                     if st.session_state.current_chat_id == chat_id:
                         if len(st.session_state.chats) > 0:
                             st.session_state.current_chat_id = next(iter(st.session_state.chats.keys()))
@@ -198,6 +199,7 @@ if prompt := st.chat_input("How can I help?"):
 
     with st.chat_message("assistant", avatar=BOT_AVATAR):
         message_placeholder = st.empty()
+        logger.info(f"Sending input to the model: {prompt}, {st.session_state.current_chat_id}")
         full_response = send_input(prompt, st.session_state.current_chat_id)
         message_placeholder.markdown(full_response)
     

@@ -22,6 +22,10 @@ class Orchestrator():
         elif data_dict["type"] == "delete_history":
             self.model.delete_chat_history()
             return
+        elif data_dict["type"] == "delete_chat":
+            thread_id = data_dict.get("chat_id")
+            self.model.delete_entries_by_thread_id(thread_id)
+            return
 
         if data_dict["type"] == "text":
             prompt = data_dict["text"]
