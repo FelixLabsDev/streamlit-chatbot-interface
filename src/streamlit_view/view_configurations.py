@@ -2,8 +2,8 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
 import logging
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+# logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger("view_configurations")
 
 def define_endpoints(app, view_callback):
     # Endpoint to receive user input and return AI-generated response
@@ -12,12 +12,13 @@ def define_endpoints(app, view_callback):
         logger.info("inside receive_input")
         data = await request.json()
         user_input = data.get("user_input")
+        chat_id = data.get("chat_id")
 
         if user_input:
             # Generate AI response based on the user input
             data_dict = {
                 "type": "text",
-                "chat_id": "69420",
+                "chat_id": chat_id,
                 "text": user_input
             }
             ai_response = view_callback(data_dict)

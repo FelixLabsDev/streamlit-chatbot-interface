@@ -25,7 +25,7 @@ class Orchestrator():
 
         if data_dict["type"] == "text":
             prompt = data_dict["text"]
-            thread_id = int(data_dict.get("chat_id", 69))
+            thread_id = data_dict.get("chat_id", 69)
             user_id = data_dict.get("name", "felix")
 
         model_response = self.model.invoke_graph(prompt, thread_id)

@@ -5,8 +5,8 @@ import logging
 from .view_configurations import define_endpoints
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+# logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger("view")
 
 class View:
     def __init__(self, app, view_callback, title="Streamlit Chatbot Interface"):
@@ -35,13 +35,13 @@ class View:
         self.run_streamlit(title)
 
 
-def send_input(user_input):
+def send_input(user_input, chat_id):
     logger.info("Inside send_input")
     logger.info(f"User input: {user_input}")
     try:
         # Sending the user input to FastAPI and receiving AI response
         response = requests.post(
-            "http://localhost:5051/input", json={"user_input": user_input}
+            "http://localhost:5051/input", json={"user_input": user_input, "chat_id": chat_id}
         )
         logger.info(f"Response: {response}")
         if response.status_code == 200:
