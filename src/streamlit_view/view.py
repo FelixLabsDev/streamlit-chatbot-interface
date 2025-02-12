@@ -35,22 +35,33 @@ class View:
         self.run_streamlit(title)
 
 
-def send_input(user_input, chat_id):
+def send_input(user_input, user_id):
     logger.info("Inside send_input")
     logger.info(f"User input: {user_input}")
     try:
         # Sending the user input to FastAPI and receiving AI response
         response = requests.post(
-            "http://localhost:5051/input", json={"user_input": user_input, "chat_id": chat_id}
+            "http://localhost:5051/input", json={"user_input": user_input, "user_id": user_id}
         )
         logger.info(f"Response: {response}")
         if response.status_code == 200:
-            return response.json().get("ai_response", "No AI response")
+            return response
         else:
             return "Error: Failed to get AI response"
     except requests.exceptions.RequestException as e:
         return f"Error: {str(e)}"
-
+    
+def get_response(user_id):
+    logger.info("Inside get_response")
+    try:
+        # Sending the user input to FastAPI and receiving AI response
+        response = requests.get(
+            f"http://localhost:5051/get_response?user_id={user_id}"
+        )
+        logger.info(f"Response: {response}")
+        return response
+    except requests.exceptions.RequestException as e:
+        return f"Error: {str(e)}"
 
 def delete_all_history():
     try:
