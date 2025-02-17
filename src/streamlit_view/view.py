@@ -2,22 +2,29 @@ import os
 import subprocess
 import requests
 import logging
+import asyncio
 from .view_configurations import define_endpoints
+from .view_abc import BaseView, RedisEnabledMixin
 
 # Configure logging
 # logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("view")
 
-class View:
+class View(RedisEnabledMixin, BaseView):
+    
     def __init__(self, app, view_callback, title="Streamlit Chatbot Interface"):
         logging.info("Initializing View class")
-        define_endpoints(app, view_callback)
+        define_endpoints(app, view_callback, self.get_response_callback)
         # self.run(title=title)
 
-    def send_message(self, chat_id, message):
-        return message
+    def set_redis_client(self, redis_client):
+        super().set_redis_client(redis_client)
+        
+    async def send_message(self, chat_id, message):
+        await self.redis.store_ai_response(chat_id, message)
 
     def run_streamlit(self, title):
+        logger.info("Running Streamlit app")
         try:
             filename = os.path.join(os.path.dirname(__file__), "streamlit_chat_ui.py")
             # command = ["streamlit", "run", filename, "--", "--clean", "--title", title]
@@ -31,9 +38,19 @@ class View:
         except subprocess.CalledProcessError as e:
             logging.error(f"Error occurred while running command: {e}")
 
-    def run(self, title="Streamlit Chatbot Interface"):
-        self.run_streamlit(title)
+    async def get_response_callback(self, user_id: str) -> str:
+        """Get AI response for a specific user"""
+        if self.redis and self.redis.client:
+            return await self.redis.get_first_ai_response(user_id)
+        return None
 
+    async def run_async(self, title="Streamlit Chatbot Interface"):
+        # Offload the blocking call to a thread
+        await asyncio.to_thread(self.run_streamlit, title)
+
+    def run(self, title="Streamlit Chatbot Interface"):
+        # Optionally, you can call the sync version from your main code:
+        self.run_streamlit(title)
 
 def send_input(user_input, user_id):
     logger.info("Inside send_input")
@@ -41,9 +58,9 @@ def send_input(user_input, user_id):
     try:
         # Sending the user input to FastAPI and receiving AI response
         response = requests.post(
-            "http://localhost:5051/input", json={"user_input": user_input, "user_id": user_id}
+        "http://localhost:5051/input", json={"user_input": user_input, "user_id": user_id}
         )
-        logger.info(f"Response: {response}")
+        logger.info(f"Response View: {response.content}")
         if response.status_code == 200:
             return response
         else:
@@ -58,21 +75,23 @@ def get_response(user_id):
         response = requests.get(
             f"http://localhost:5051/get_response?user_id={user_id}"
         )
-        logger.info(f"Response: {response}")
+        logger.info(f"Response OLD: {response}")
         return response
     except requests.exceptions.RequestException as e:
         return f"Error: {str(e)}"
 
-def delete_all_history():
+
+def delete_history():
     try:
         # Sending the user input to FastAPI and receiving AI response
-        response = requests.post("http://localhost:5051/delete_all_history")
+        response = requests.post("http://localhost:5051/delete_history")
         if response.status_code == 200:
             return response.json().get("graph_response", "history not deleted")
         else:
-            return "Error: Failed to delete all chat history"
+            return "Error: Failed to delete chat history"
     except requests.exceptions.RequestException as e:
         return f"Error: {str(e)}"
+    
 
 def delete_chat(chat_id):
     try:

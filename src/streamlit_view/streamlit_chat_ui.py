@@ -103,6 +103,11 @@ if "messages" not in st.session_state:
     # st.session_state.messages = load_chat_history()
     st.session_state.messages = []
 
+if "waiting_response" not in st.session_state:
+    st.session_state.waiting_response = False  # Indicates if bot response is pending
+    
+st.session_state.ai_messages_queue = []  # Queue for messages
+
 
 
 
@@ -132,26 +137,33 @@ def display_chat_history():
             st.markdown(message["content"])
 
 
+
 @st.fragment(run_every=1)
-def chat_fragment():
+def render_ai_response():
+    logger.info(f'st.session_state.ai_messages_queue: {st.session_state.ai_messages_queue}')
+    for msg in st.session_state.ai_messages_queue:
+        st.chat_message("assistant", avatar="🤖").write(msg)
+    logger.info('Response sent successfully')
+
+@st.fragment(run_every=2)
+def check_ai_response():
+    if not st.session_state.waiting_response:
+        return
+    
     user_id = st.session_state.user_id
-    logger.info(f"inside chat_fragment. User ID: {user_id}")
-    
-    current_time = datetime.datetime.now().strftime("%H:%M:%S")
-    st.write(f"🕒 Текущее время: {current_time}")
-    
+
+
     try:
         # Fetch messages from Redis
         response = get_response(user_id)
-        logger.debug(f"Response: {response.json()}")
+        logger.info(f"Response: {response}")
+        logger.info(f"Response content: {response.content}")
         if response.status_code == 200:
             data = response.json()
             if data['status'] == 'success':
-                display_chat_history()
                 ai_response = data['ai_response']
-                logger.debug(f"AI response: {ai_response}")
-                with st.chat_message("assistant", avatar=BOT_AVATAR):
-                    st.markdown(ai_response)
+                st.session_state.ai_messages_queue.append(ai_response)
+                logger.info(f"AI response: {ai_response}")
                 st.session_state.messages.append({"role": "assistant", "content": ai_response})
                 logger.info(f"AI response Added: {ai_response}")
             elif data['status'] == 'pending':
@@ -162,6 +174,7 @@ def chat_fragment():
             st.warning("No messages available yet")
     except Exception as e:
         logger.error(f"Error fetching messages from Redis: {e}")
+    
 
 
 display_chat_history()
@@ -175,17 +188,14 @@ if prompt := st.chat_input("How can I help?"):
     with st.chat_message("user", avatar=USER_AVATAR):
         st.markdown(prompt)
 
-    with st.chat_message("assistant", avatar=BOT_AVATAR):
-        message_placeholder = st.empty()
-        full_response = send_input(prompt, user_id=st.session_state.user_id)
+    # message_placeholder = st.empty()
+    full_response = send_input(prompt, user_id=st.session_state.user_id)
+    st.session_state.waiting_response = True  # Indicate we expect a response
 
 
-        # message_placeholder.markdown(full_response)
-    # st.session_state.messages.append({"role": "assistant", "content": full_response})
 
-st.write(st.session_state)
-
-chat_fragment()
+render_ai_response()
+check_ai_response()
 # Save chat history after each interaction
 save_chat_history(st.session_state.messages)
 
