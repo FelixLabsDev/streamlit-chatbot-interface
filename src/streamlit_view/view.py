@@ -44,11 +44,11 @@ class View(RedisEnabledMixin, BaseView):
             return await self.redis.get_first_ai_response(user_id)
         return None
 
-    async def run_async(self, title="Streamlit Chatbot Interface"):
+    async def run(self, title="Streamlit Chatbot Interface"):
         # Offload the blocking call to a thread
         await asyncio.to_thread(self.run_streamlit, title)
 
-    def run(self, title="Streamlit Chatbot Interface"):
+    def run_sync(self, title="Streamlit Chatbot Interface"):
         # Optionally, you can call the sync version from your main code:
         self.run_streamlit(title)
 
