@@ -100,7 +100,7 @@ def save_chat_history(messages):
 
 # Initialize or load chat history
 if "messages" not in st.session_state:
-    # st.session_state.messages = load_chat_history()
+    st.session_state.messages = load_chat_history()
     st.session_state.messages = []
 
 if "waiting_response" not in st.session_state:
@@ -145,13 +145,13 @@ def render_ai_response():
         st.chat_message("assistant", avatar="🤖").write(msg)
     logger.info('Response sent successfully')
 
+
 @st.fragment(run_every=2)
 def check_ai_response():
     if not st.session_state.waiting_response:
         return
-    
+      
     user_id = st.session_state.user_id
-
 
     try:
         # Fetch messages from Redis
