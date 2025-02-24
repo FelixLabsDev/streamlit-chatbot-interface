@@ -52,7 +52,8 @@ logging_config = {
         }
     }
 }
-
+log_dir = os.path.join('data', 'logs')
+os.makedirs(log_dir, exist_ok=True)
 logging.config.dictConfig(logging_config)
 
 # Function to run the FastAPI app
