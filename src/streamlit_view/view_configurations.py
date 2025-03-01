@@ -5,7 +5,7 @@ import logging
 # logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("view_configurations")
 
-def define_endpoints(app, view_callback):
+def define_endpoints(app, view_callback, get_response_callback):
     # Endpoint to receive user input and return AI-generated response
     @app.post("/input")
     async def receive_input(request: Request):
@@ -21,12 +21,23 @@ def define_endpoints(app, view_callback):
                 "chat_id": chat_id,
                 "text": user_input
             }
-            ai_response = view_callback(data_dict)
-
-            # Return the AI response back to Streamlit
-            return JSONResponse({"status": "success", "ai_response": ai_response}, status_code=200)
+            await view_callback(data_dict)
+            return JSONResponse({"status": "success"}, status_code=200)
 
         raise HTTPException(status_code=400, detail="No input received")
+        
+    # Endpoint to fetch AI response from Redis
+    @app.get("/get_response")
+    async def get_response(thread_id: str):
+        # Fetch AI response from Redis
+        try:
+            ai_response = await get_response_callback(thread_id)
+            if ai_response:
+                return JSONResponse({"status": "success", "ai_response": ai_response}, status_code=200)
+            return JSONResponse({"status": "pending"}, status_code=200)
+        except Exception as e:
+            logger.error(f"Error fetching AI response: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
 
     # Endpoint to delete all chat history
     @app.post("/delete_all_history")

@@ -36,7 +36,7 @@ if root_dir not in sys.path:
     sys.path.append(root_dir)
 
 # Now your imports should work
-from streamlit_view.view import send_input, delete_all_history, delete_chat
+from streamlit_view.view import send_input, delete_all_history, delete_chat, get_response
 
 #######################################################################################################
 #######################################################################################################
@@ -101,6 +101,13 @@ if "chats" not in st.session_state or "current_chat_id" not in st.session_state:
         loaded_current_id = new_chat_id
     st.session_state.chats = loaded_chats
     st.session_state.current_chat_id = loaded_current_id
+
+# Initialize waiting_response and ai_messages_queue in session state
+if "waiting_response" not in st.session_state:
+    st.session_state.waiting_response = False
+
+if "ai_messages_queue" not in st.session_state:
+    st.session_state.ai_messages_queue = []
 
 def delete_all_chat_histories():
     st.session_state.chats = {}
@@ -185,23 +192,66 @@ with st.sidebar:
         delete_all_chat_histories()
         st.rerun()
 
+@st.fragment(run_every=1)
+def render_ai_response():
+    logger.info(f'st.session_state.ai_messages_queue: {st.session_state.ai_messages_queue}')
+    if st.session_state.ai_messages_queue:
+        msg = st.session_state.ai_messages_queue.pop(0)
+        current_chat = st.session_state.chats[st.session_state.current_chat_id]
+        current_chat["messages"].append({"role": "assistant", "content": msg})
+        save_chat_history(st.session_state.chats, st.session_state.current_chat_id)
+        st.rerun()
+    logger.info('Response sent successfully')
+
+@st.fragment(run_every=2)
+def check_ai_response():
+    if not st.session_state.waiting_response:
+        return
+      
+    current_chat_id = st.session_state.current_chat_id
+
+    try:
+        # Fetch messages from backend
+        response = get_response(current_chat_id)
+        logger.info(f"Response: {response}")
+        if response.status_code == 200:
+            data = response.json()
+            if data['status'] == 'success':
+                ai_response = data['ai_response']
+                st.session_state.ai_messages_queue.append(ai_response)
+                logger.info(f"AI response: {ai_response}")
+                st.session_state.waiting_response = False
+            elif data['status'] == 'pending':
+                # No messages available yet
+                pass
+        else:
+            logger.error(f"Unexpected response status: {response.status_code}")
+            st.warning("No messages available yet")
+    except Exception as e:
+        logger.error(f"Error fetching messages: {e}")
+
+# Display current chat
 current_chat = st.session_state.chats[st.session_state.current_chat_id]
 for message in current_chat["messages"]:
     avatar = USER_AVATAR if message["role"] == "user" else BOT_AVATAR
     with st.chat_message(message["role"], avatar=avatar):
         st.markdown(message["content"])
 
+# Run fragments to check and render responses
+render_ai_response()
+check_ai_response()
+
+# Process user input
 if prompt := st.chat_input("How can I help?"):
     current_chat["messages"].append({"role": "user", "content": prompt})
     
     with st.chat_message("user", avatar=USER_AVATAR):
         st.markdown(prompt)
 
-    with st.chat_message("assistant", avatar=BOT_AVATAR):
-        message_placeholder = st.empty()
-        logger.info(f"Sending input to the model: {prompt}, {st.session_state.current_chat_id}")
-        full_response = send_input(prompt, st.session_state.current_chat_id)
-        message_placeholder.markdown(full_response)
+    # Send the input and set waiting_response to true
+    logger.info(f"Sending input to the model: {prompt}, {st.session_state.current_chat_id}")
+    send_input(prompt, st.session_state.current_chat_id)
+    st.session_state.waiting_response = True
     
-    current_chat["messages"].append({"role": "assistant", "content": full_response})
+    # Save chat history
     save_chat_history(st.session_state.chats, st.session_state.current_chat_id)

@@ -2,6 +2,7 @@ import os
 import subprocess
 import requests
 import logging
+import asyncio
 from .view_configurations import define_endpoints
 
 # Configure logging
@@ -11,10 +12,15 @@ logger = logging.getLogger("view")
 class View:
     def __init__(self, app, view_callback, title="Streamlit Chatbot Interface"):
         logging.info("Initializing View class")
-        define_endpoints(app, view_callback)
+        define_endpoints(app, view_callback, self.get_response_callback)
         # self.run(title=title)
-
-    def send_message(self, chat_id, message):
+        
+    def set_redis_client(self, redis_client):
+        self.redis = redis_client
+        
+    async def send_message(self, chat_id, message):
+        if hasattr(self, 'redis') and self.redis:
+            await self.redis.store_ai_response(chat_id, message)
         return message
 
     def run_streamlit(self, title):
@@ -30,8 +36,19 @@ class View:
             subprocess.run(command, check=True, env=env)
         except subprocess.CalledProcessError as e:
             logging.error(f"Error occurred while running command: {e}")
+            
+    async def get_response_callback(self, thread_id: str) -> str:
+        """Get AI response for a specific chat"""
+        if hasattr(self, 'redis') and self.redis:
+            return await self.redis.get_first_ai_response(thread_id)
+        return None
 
-    def run(self, title="Streamlit Chatbot Interface"):
+    async def run(self, title="Streamlit Chatbot Interface"):
+        # Offload the blocking call to a thread
+        await asyncio.to_thread(self.run_streamlit, title)
+        
+    def run_sync(self, title="Streamlit Chatbot Interface"):
+        # Optionally, you can call the sync version from your main code:
         self.run_streamlit(title)
 
 
@@ -45,9 +62,21 @@ def send_input(user_input, chat_id):
         )
         logger.info(f"Response: {response}")
         if response.status_code == 200:
-            return response.json().get("ai_response", "No AI response")
+            return response
         else:
             return "Error: Failed to get AI response"
+    except requests.exceptions.RequestException as e:
+        return f"Error: {str(e)}"
+
+def get_response(chat_id):
+    logger.info(f"Inside get_response for chat_id: {chat_id}")
+    try:
+        # Sending the user input to FastAPI and receiving AI response
+        response = requests.get(
+            f"http://localhost:5051/get_response?thread_id={chat_id}"
+        )
+        logger.info(f"Response: {response}")
+        return response
     except requests.exceptions.RequestException as e:
         return f"Error: {str(e)}"
 
