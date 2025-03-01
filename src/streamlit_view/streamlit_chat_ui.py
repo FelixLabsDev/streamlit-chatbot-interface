@@ -36,7 +36,7 @@ if root_dir not in sys.path:
     sys.path.append(root_dir)
 
 # Now your imports should work
-from streamlit_view.view import send_input, delete_history, get_response
+from streamlit_view.view import send_input, delete_all_history, delete_chat, get_response
 
 #######################################################################################################
 #######################################################################################################
@@ -95,77 +95,155 @@ def load_chat_history():
 # Save chat history to shelve file
 def save_chat_history(messages):
     with shelve.open("view/.streamlit/chat_history") as db:
-        db["messages"] = messages
+        db["chats"] = chats
+        db["current_chat_id"] = current_chat_id
 
+def export_chat_to_text(chat_messages):
+    export_text = ""
+    for msg in chat_messages:
+        sender = "human" if msg["role"] == "user" else "ai"
+        export_text += f"{sender}: {msg['content']}\n\n"
+    return export_text
 
-# Initialize or load chat history
-if "messages" not in st.session_state:
-    st.session_state.messages = load_chat_history()
-    st.session_state.messages = []
+if "chats" not in st.session_state or "current_chat_id" not in st.session_state:
+    loaded_chats, loaded_current_id = load_chat_history()
+    if not loaded_chats:
+        new_chat_id = generate_short_uuid()
+        loaded_chats = {
+            new_chat_id: {
+                "title": new_chat_id,
+                "messages": []
+            }
+        }
+        loaded_current_id = new_chat_id
+    st.session_state.chats = loaded_chats
+    st.session_state.current_chat_id = loaded_current_id
 
+# Initialize waiting_response and ai_messages_queue in session state
 if "waiting_response" not in st.session_state:
-    st.session_state.waiting_response = False  # Indicates if bot response is pending
+    st.session_state.waiting_response = False
+
     
 st.session_state.ai_messages_queue = []  # Queue for messages
 
 
+def delete_all_chat_histories():
+    st.session_state.chats = {}
+    new_chat_id = generate_short_uuid()
+    st.session_state.chats[new_chat_id] = {
+        "title": new_chat_id,
+        "messages": []
+    }
+    st.session_state.current_chat_id = new_chat_id
+    save_chat_history(st.session_state.chats, st.session_state.current_chat_id)
+    delete_all_history()
 
-
-def delete_chat_history():
-    # delete history locally (streamlit)
-    st.session_state.messages = []
-    save_chat_history([])
-    # delete history from the server (agent)
-    delete_history() 
-
-# Clean history before loading if --clean argument is passed
-if args.clean and "clean" not in st.session_state:
-    st.session_state.clean = True 
-    delete_chat_history()
-
-# Sidebar with a button to delete chat history
 with st.sidebar:
-    if st.button("Delete Chat History"):
-        delete_chat_history()
-
-
-def display_chat_history():
-    # Display chat messages
-    for message in st.session_state.messages:
-        avatar = USER_AVATAR if message["role"] == "user" else BOT_AVATAR
-        with st.chat_message(message["role"], avatar=avatar):
-            st.markdown(message["content"])
-
-
+    if st.button("New Chat"):
+        new_chat_id = generate_short_uuid()
+        st.session_state.chats[new_chat_id] = {
+            "title": new_chat_id,
+            "messages": []
+        }
+        st.session_state.current_chat_id = new_chat_id
+        save_chat_history(st.session_state.chats, st.session_state.current_chat_id)
+        st.rerun()
+    
+    st.write("---")
+    st.subheader("Chat Sessions")
+    
+    for chat_id in list(st.session_state.chats.keys()):
+        chat = st.session_state.chats[chat_id]
+        col1, col2 = st.columns([0.7, 0.3])
+        
+        with col1:
+            btn_type = "primary" if chat_id == st.session_state.current_chat_id else "secondary"
+            if st.button(
+                chat["title"],
+                key=f"title_{chat_id}",
+                use_container_width=True,
+                type=btn_type
+            ):
+                st.session_state.current_chat_id = chat_id
+                save_chat_history(st.session_state.chats, st.session_state.current_chat_id)
+                st.rerun()
+        
+        with col2:
+            with st.popover("⋮"):
+                new_title = st.text_input(
+                    "Rename chat",
+                    value=chat["title"],
+                    key=f"rename_{chat_id}"
+                )
+                if new_title != chat["title"]:
+                    st.session_state.chats[chat_id]["title"] = new_title
+                    save_chat_history(st.session_state.chats, st.session_state.current_chat_id)
+                
+                export_text = export_chat_to_text(chat["messages"])
+                st.download_button(
+                    label="Export to TXT",
+                    data=export_text,
+                    file_name=f"chat_{chat_id}.txt",
+                    mime="text/plain",
+                    key=f"export_{chat_id}"
+                )
+                
+                if st.button(
+                    "Delete",
+                    key=f"delete_{chat_id}",
+                    type="primary"
+                ):
+                    del st.session_state.chats[chat_id]
+                    delete_chat(chat_id)
+                    if st.session_state.current_chat_id == chat_id:
+                        if len(st.session_state.chats) > 0:
+                            st.session_state.current_chat_id = next(iter(st.session_state.chats.keys()))
+                        else:
+                            new_id = generate_short_uuid()
+                            st.session_state.chats[new_id] = {"title": new_id, "messages": []}
+                            st.session_state.current_chat_id = new_id
+                    save_chat_history(st.session_state.chats, st.session_state.current_chat_id)
+                    st.rerun()
+    
+    st.write("---")
+    if st.button("Delete All Chats", type="secondary"):
+        delete_all_chat_histories()
+        st.rerun()
 
 @st.fragment(run_every=1)
 def render_ai_response():
+    if not st.session_state.ai_messages_queue:
+        return 
+    
     logger.info(f'st.session_state.ai_messages_queue: {st.session_state.ai_messages_queue}')
     for msg in st.session_state.ai_messages_queue:
         st.chat_message("assistant", avatar="🤖").write(msg)
     logger.info('Response sent successfully')
-
 
 @st.fragment(run_every=2)
 def check_ai_response():
     if not st.session_state.waiting_response:
         return
       
-    thread_id = st.session_state.thread_id
+    current_chat_id = st.session_state.current_chat_id
 
     try:
-        # Fetch messages from Redis
-        response = get_response(thread_id)
-        logger.info(f"Response: {response}")
+        # Fetch messages from backend
+        response = get_response(current_chat_id)
         logger.info(f"Response content: {response.content}")
         if response.status_code == 200:
             data = response.json()
             if data['status'] == 'success':
+                current_chat = st.session_state.chats[current_chat_id]
                 ai_response = data['ai_response']
                 st.session_state.ai_messages_queue.append(ai_response)
                 logger.info(f"AI response: {ai_response}")
-                st.session_state.messages.append({"role": "assistant", "content": ai_response})
-                logger.info(f"AI response Added: {ai_response}")
+                current_chat["messages"].append({"role": "assistant", "content": ai_response})
+                # # Debug logging for chat state
+                # logger.info(f"Current chat ID: {current_chat_id}")
+                # logger.info(f"Current chat state: {current_chat}")
+                # logger.info(f"Current chat messages: {current_chat.messages}")
+                st.session_state.waiting_response = False  # Reset waiting state after successful response
             elif data['status'] == 'pending':
                 # No messages available yet
                 pass
@@ -173,30 +251,34 @@ def check_ai_response():
             logger.error(f"Unexpected response status: {response.status_code}")
             st.warning("No messages available yet")
     except Exception as e:
-        logger.error(f"Error fetching messages from Redis: {e}")
-    
+        logger.error(f"Error fetching messages: {e}")
+
+# Display current chat
+current_chat = st.session_state.chats[st.session_state.current_chat_id]
+for message in current_chat["messages"]:
+    avatar = USER_AVATAR if message["role"] == "user" else BOT_AVATAR
+    with st.chat_message(message["role"], avatar=avatar):
+        st.markdown(message["content"])
 
 
-display_chat_history()
-
-
-
-# Main chat interface
+# Process user input
 if prompt := st.chat_input("How can I help?"):
     logger.info(f"User input: {prompt}")
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user", avatar=USER_AVATAR):
         st.markdown(prompt)
 
-    # message_placeholder = st.empty()
-    full_response = send_input(prompt, thread_id=st.session_state.thread_id)
-    st.session_state.waiting_response = True  # Indicate we expect a response
+    # Send the input and set waiting_response to true
+    logger.info(f"Sending input to the model: {prompt}, {st.session_state.current_chat_id}")
+    send_input(prompt, st.session_state.current_chat_id)
+    st.session_state.waiting_response = True
+    
 
-
-
+    
+    
+# Run fragments to check and render responses
 render_ai_response()
 check_ai_response()
-# Save chat history after each interaction
-save_chat_history(st.session_state.messages)
-
-# streamlit run streamlit_chat_ui.py -- --clean
+    
+# Save chat history
+save_chat_history(st.session_state.chats, st.session_state.current_chat_id)
