@@ -12,13 +12,13 @@ def define_endpoints(app, view_callback, get_response_callback):
         logger.info("inside receive_input")
         data = await request.json()
         user_input = data.get("user_input")
-        chat_id = data.get("chat_id")
+        thread_id = data.get("thread_id")
 
         if user_input:
             # Generate AI response based on the user input
             data_dict = {
                 "type": "text",
-                "chat_id": chat_id,
+                "thread_id": thread_id,
                 "text": user_input
             }
             await view_callback(data_dict)

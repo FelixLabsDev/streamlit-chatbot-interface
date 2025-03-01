@@ -52,13 +52,13 @@ class View(RedisEnabledMixin, BaseView):
         self.run_streamlit(title)
 
 
-def send_input(user_input, chat_id):
+def send_input(user_input, thread_id):
     logger.info("Inside send_input")
     logger.info(f"User input: {user_input}")
     try:
         # Sending the user input to FastAPI and receiving AI response
         response = requests.post(
-            "http://localhost:5051/input", json={"user_input": user_input, "chat_id": chat_id}
+            "http://localhost:5051/input", json={"user_input": user_input, "thread_id": thread_id}
         )
         logger.info(f"Response: {response}")
         if response.status_code == 200:
@@ -68,14 +68,14 @@ def send_input(user_input, chat_id):
     except requests.exceptions.RequestException as e:
         return f"Error: {str(e)}"
 
-def get_response(chat_id):
-    logger.info(f"Inside get_response for chat_id: {chat_id}")
+def get_response(thread_id):
+    logger.info(f"Inside get_response for thread_id: {thread_id}")
     try:
         # Sending the user input to FastAPI and receiving AI response
         response = requests.get(
-            f"http://localhost:5051/get_response?thread_id={chat_id}"
+            f"http://localhost:5051/get_response?thread_id={thread_id}"
         )
-        logger.info(f"Response: {response}")
+        logger.info(f"Response OLD: {response}")
         return response
     except requests.exceptions.RequestException as e:
         return f"Error: {str(e)}"

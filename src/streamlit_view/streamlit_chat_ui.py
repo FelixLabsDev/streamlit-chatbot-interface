@@ -209,13 +209,15 @@ def check_ai_response():
     try:
         # Fetch messages from backend
         response = get_response(current_chat_id)
-        logger.info(f"Response: {response}")
+        logger.info(f"Response content: {response.content}")
         if response.status_code == 200:
             data = response.json()
             if data['status'] == 'success':
+                current_chat = st.session_state.chats[current_chat_id]
                 ai_response = data['ai_response']
                 st.session_state.ai_messages_queue.append(ai_response)
                 logger.info(f"AI response: {ai_response}")
+                current_chat.messages.append({"role": "assistant", "content": ai_response})
                 st.session_state.waiting_response = False
             elif data['status'] == 'pending':
                 # No messages available yet
