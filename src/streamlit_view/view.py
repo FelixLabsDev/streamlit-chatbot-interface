@@ -4,24 +4,24 @@ import requests
 import logging
 import asyncio
 from .view_configurations import define_endpoints
+from .view_abc import BaseView, RedisEnabledMixin
+
 
 # Configure logging
 # logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("view")
 
-class View:
+class View(RedisEnabledMixin, BaseView):
     def __init__(self, app, view_callback, title="Streamlit Chatbot Interface"):
         logging.info("Initializing View class")
         define_endpoints(app, view_callback, self.get_response_callback)
         # self.run(title=title)
         
     def set_redis_client(self, redis_client):
-        self.redis = redis_client
+        super().set_redis_client(redis_client)
         
     async def send_message(self, chat_id, message):
-        if hasattr(self, 'redis') and self.redis:
-            await self.redis.store_ai_response(chat_id, message)
-        return message
+        await self.redis.store_ai_response(chat_id, message)
 
     def run_streamlit(self, title):
         try:
@@ -39,7 +39,7 @@ class View:
             
     async def get_response_callback(self, thread_id: str) -> str:
         """Get AI response for a specific chat"""
-        if hasattr(self, 'redis') and self.redis:
+        if self.redis and self.redis.client:
             return await self.redis.get_first_ai_response(thread_id)
         return None
 

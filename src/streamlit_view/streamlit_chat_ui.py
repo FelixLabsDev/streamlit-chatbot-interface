@@ -195,12 +195,8 @@ with st.sidebar:
 @st.fragment(run_every=1)
 def render_ai_response():
     logger.info(f'st.session_state.ai_messages_queue: {st.session_state.ai_messages_queue}')
-    if st.session_state.ai_messages_queue:
-        msg = st.session_state.ai_messages_queue.pop(0)
-        current_chat = st.session_state.chats[st.session_state.current_chat_id]
-        current_chat["messages"].append({"role": "assistant", "content": msg})
-        save_chat_history(st.session_state.chats, st.session_state.current_chat_id)
-        st.rerun()
+    for msg in st.session_state.ai_messages_queue:
+        st.chat_message("assistant", avatar="🤖").write(msg)
     logger.info('Response sent successfully')
 
 @st.fragment(run_every=2)
@@ -237,9 +233,9 @@ for message in current_chat["messages"]:
     with st.chat_message(message["role"], avatar=avatar):
         st.markdown(message["content"])
 
-# Run fragments to check and render responses
-render_ai_response()
-check_ai_response()
+st.write('Current chat id: {%s}' % st.session_state.current_chat_id)
+
+
 
 # Process user input
 if prompt := st.chat_input("How can I help?"):
@@ -255,3 +251,8 @@ if prompt := st.chat_input("How can I help?"):
     
     # Save chat history
     save_chat_history(st.session_state.chats, st.session_state.current_chat_id)
+    
+    
+# Run fragments to check and render responses
+render_ai_response()
+check_ai_response()
