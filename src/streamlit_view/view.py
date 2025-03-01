@@ -12,6 +12,7 @@ from .view_abc import BaseView, RedisEnabledMixin
 logger = logging.getLogger("view")
 
 class View(RedisEnabledMixin, BaseView):
+    
     def __init__(self, app, view_callback, title="Streamlit Chatbot Interface"):
         logging.info("Initializing View class")
         define_endpoints(app, view_callback, self.get_response_callback)

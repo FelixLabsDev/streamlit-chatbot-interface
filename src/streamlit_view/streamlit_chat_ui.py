@@ -106,8 +106,9 @@ if "chats" not in st.session_state or "current_chat_id" not in st.session_state:
 if "waiting_response" not in st.session_state:
     st.session_state.waiting_response = False
 
-if "ai_messages_queue" not in st.session_state:
-    st.session_state.ai_messages_queue = []
+    
+st.session_state.ai_messages_queue = []  # Queue for messages
+
 
 def delete_all_chat_histories():
     st.session_state.chats = {}
@@ -194,6 +195,9 @@ with st.sidebar:
 
 @st.fragment(run_every=1)
 def render_ai_response():
+    if not st.session_state.ai_messages_queue:
+        return 
+    
     logger.info(f'st.session_state.ai_messages_queue: {st.session_state.ai_messages_queue}')
     for msg in st.session_state.ai_messages_queue:
         st.chat_message("assistant", avatar="🤖").write(msg)
@@ -217,8 +221,12 @@ def check_ai_response():
                 ai_response = data['ai_response']
                 st.session_state.ai_messages_queue.append(ai_response)
                 logger.info(f"AI response: {ai_response}")
-                current_chat.messages.append({"role": "assistant", "content": ai_response})
-                st.session_state.waiting_response = False
+                current_chat["messages"].append({"role": "assistant", "content": ai_response})
+                # # Debug logging for chat state
+                # logger.info(f"Current chat ID: {current_chat_id}")
+                # logger.info(f"Current chat state: {current_chat}")
+                # logger.info(f"Current chat messages: {current_chat.messages}")
+                st.session_state.waiting_response = False  # Reset waiting state after successful response
             elif data['status'] == 'pending':
                 # No messages available yet
                 pass
@@ -235,9 +243,6 @@ for message in current_chat["messages"]:
     with st.chat_message(message["role"], avatar=avatar):
         st.markdown(message["content"])
 
-st.write('Current chat id: {%s}' % st.session_state.current_chat_id)
-
-
 
 # Process user input
 if prompt := st.chat_input("How can I help?"):
@@ -251,10 +256,12 @@ if prompt := st.chat_input("How can I help?"):
     send_input(prompt, st.session_state.current_chat_id)
     st.session_state.waiting_response = True
     
-    # Save chat history
-    save_chat_history(st.session_state.chats, st.session_state.current_chat_id)
+
     
     
 # Run fragments to check and render responses
 render_ai_response()
 check_ai_response()
+    
+# Save chat history
+save_chat_history(st.session_state.chats, st.session_state.current_chat_id)
