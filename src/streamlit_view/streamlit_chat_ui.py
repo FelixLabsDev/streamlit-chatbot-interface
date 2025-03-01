@@ -66,10 +66,10 @@ BOT_AVATAR = "🤖"
 
 # --- User Identification ---
 # On first run, assign a unique ID to the session.
-if 'user_id' not in st.session_state:
-    st.session_state.user_id = f"user_{int(time.time())}"  # Or use any unique mechanism
+if 'thread_id' not in st.session_state:
+    st.session_state.thread_id = "69420"  # Or use any unique mechanism
 
-user_id = st.session_state.user_id
+thread_id = st.session_state.thread_id
 
 # st.write("### Your User ID:")
 # st.write(st.session_state.user_id)
@@ -151,11 +151,11 @@ def check_ai_response():
     if not st.session_state.waiting_response:
         return
       
-    user_id = st.session_state.user_id
+    thread_id = st.session_state.thread_id
 
     try:
         # Fetch messages from Redis
-        response = get_response(user_id)
+        response = get_response(thread_id)
         logger.info(f"Response: {response}")
         logger.info(f"Response content: {response.content}")
         if response.status_code == 200:
@@ -189,7 +189,7 @@ if prompt := st.chat_input("How can I help?"):
         st.markdown(prompt)
 
     # message_placeholder = st.empty()
-    full_response = send_input(prompt, user_id=st.session_state.user_id)
+    full_response = send_input(prompt, thread_id=st.session_state.thread_id)
     st.session_state.waiting_response = True  # Indicate we expect a response
 
 

@@ -38,10 +38,10 @@ class View(RedisEnabledMixin, BaseView):
         except subprocess.CalledProcessError as e:
             logging.error(f"Error occurred while running command: {e}")
 
-    async def get_response_callback(self, user_id: str) -> str:
+    async def get_response_callback(self, thread_id: str) -> str:
         """Get AI response for a specific user"""
         if self.redis and self.redis.client:
-            return await self.redis.get_first_ai_response(user_id)
+            return await self.redis.get_first_ai_response(thread_id)
         return None
 
     async def run(self, title="Streamlit Chatbot Interface"):
@@ -52,13 +52,13 @@ class View(RedisEnabledMixin, BaseView):
         # Optionally, you can call the sync version from your main code:
         self.run_streamlit(title)
 
-def send_input(user_input, user_id):
+def send_input(user_input, thread_id):
     logger.info("Inside send_input")
     logger.info(f"User input: {user_input}")
     try:
         # Sending the user input to FastAPI and receiving AI response
         response = requests.post(
-        "http://localhost:5051/input", json={"user_input": user_input, "user_id": user_id}
+        "http://localhost:5051/input", json={"user_input": user_input, "thread_id": thread_id}
         )
         logger.info(f"Response View: {response.content}")
         if response.status_code == 200:
@@ -68,12 +68,12 @@ def send_input(user_input, user_id):
     except requests.exceptions.RequestException as e:
         return f"Error: {str(e)}"
     
-def get_response(user_id):
-    logger.info("Inside get_response")
+def get_response(thread_id):
+    logger.info(f"Inside get_response for thread_id: {thread_id}")
     try:
         # Sending the user input to FastAPI and receiving AI response
         response = requests.get(
-            f"http://localhost:5051/get_response?user_id={user_id}"
+            f"http://localhost:5051/get_response?thread_id={thread_id}"
         )
         logger.info(f"Response OLD: {response}")
         return response

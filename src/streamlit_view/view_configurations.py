@@ -13,14 +13,14 @@ def define_endpoints(app, view_callback, get_response_callback):
         logger.info("inside receive_input")
         data = await request.json()
         user_input = data.get("user_input")
-        user_id = data.get("user_id")
+        thread_id = data.get("thread_id")
 
         if user_input:
             # Store user input in Redis
             data_dict = {
-                "user_id": user_id,
+                # "user_id": user_id,
                 "type": "text",
-                "chat_id": "69420",
+                "thread_id": thread_id,
                 "text": user_input
             }
             await view_callback(data_dict)
@@ -30,10 +30,10 @@ def define_endpoints(app, view_callback, get_response_callback):
 
     # Endpoint to fetch AI response from Redis
     @app.get("/get_response")
-    async def get_response(user_id: str):
+    async def get_response(thread_id: str):
         # Fetch AI response from Redis
         try:
-            ai_response = await get_response_callback(user_id)
+            ai_response = await get_response_callback(thread_id)
             if ai_response:
                 return JSONResponse({"status": "success", "ai_response": ai_response}, status_code=200)
             return JSONResponse({"status": "pending"}, status_code=200)
