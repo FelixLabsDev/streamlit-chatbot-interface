@@ -61,7 +61,7 @@ def send_input(user_input, thread_id):
         response = requests.post(
             "http://localhost:5051/input", json={"user_input": user_input, "thread_id": thread_id}
         )
-        logger.info(f"Response: {response}")
+        logger.info(f"SEND_INPUT Response: {response}")
         if response.status_code == 200:
             return response
         else:
@@ -76,7 +76,7 @@ def get_response(thread_id):
         response = requests.get(
             f"http://localhost:5051/get_response?thread_id={thread_id}"
         )
-        logger.info(f"Response OLD: {response}")
+        logger.info(f"GET_RESPONSE Response: {response}")
         return response
     except requests.exceptions.RequestException as e:
         return f"Error: {str(e)}"
