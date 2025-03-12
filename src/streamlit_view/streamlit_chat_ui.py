@@ -124,7 +124,11 @@ if "waiting_response" not in st.session_state:
     st.session_state.waiting_response = False
 
     
-st.session_state.ai_messages_queue = []  # Queue for messages
+if 'ai_messages_queue' not in st.session_state:
+    st.session_state.ai_messages_queue = {}  # Queue for messages
+
+
+st.session_state.ai_messages_queue[st.session_state.current_chat_id] = []
 
 
 def delete_all_chat_histories():
@@ -212,11 +216,11 @@ with st.sidebar:
 
 @st.fragment(run_every=1)
 def render_ai_response():
-    if not st.session_state.ai_messages_queue:
+    if not st.session_state.ai_messages_queue[st.session_state.current_chat_id]:
         return 
     
     logger.info(f'st.session_state.ai_messages_queue: {st.session_state.ai_messages_queue}')
-    for msg in st.session_state.ai_messages_queue:
+    for msg in st.session_state.ai_messages_queue[st.session_state.current_chat_id]:
         st.chat_message("assistant", avatar="🤖").write(msg)
     logger.info('Response sent successfully')
 
@@ -236,14 +240,15 @@ def check_ai_response():
             if data['status'] == 'success':
                 current_chat = st.session_state.chats[current_chat_id]
                 ai_response = data['ai_response']
-                st.session_state.ai_messages_queue.append(ai_response)
+                st.session_state.ai_messages_queue[current_chat_id].append(ai_response)
                 logger.info(f"AI response: {ai_response}")
                 current_chat["messages"].append({"role": "assistant", "content": ai_response})
+                logger.info(f"AI response for chat {current_chat_id}: {ai_response}")
                 # # Debug logging for chat state
                 # logger.info(f"Current chat ID: {current_chat_id}")
                 # logger.info(f"Current chat state: {current_chat}")
                 # logger.info(f"Current chat messages: {current_chat.messages}")
-                st.session_state.waiting_response = False  # Reset waiting state after successful response
+                # st.session_state.waiting_response = False  # Reset waiting state after successful response
             elif data['status'] == 'pending':
                 # No messages available yet
                 pass
