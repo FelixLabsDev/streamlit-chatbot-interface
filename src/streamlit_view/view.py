@@ -3,21 +3,36 @@ import subprocess
 import requests
 import logging
 import asyncio
+import uvicorn
+from typing import Callable
+from fastapi import FastAPI
 from .view_configurations import define_endpoints
-from .view_abc import BaseView, RedisEnabledMixin
+from view.view_abc import BaseView, RedisEnabledMixin
 
 
 # Configure logging
 # logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("view")
 
-class View(RedisEnabledMixin, BaseView):
+class StreamlitView(RedisEnabledMixin, BaseView):
     
-    def __init__(self, app, view_callback, title="Streamlit Chatbot Interface"):
+    def __init__(self, view_callback, title="Streamlit Chatbot Interface", host="0.0.0.0", port=5051):
         logging.info("Initializing View class")
-        define_endpoints(app, view_callback, self.get_response_callback)
-        # self.run(title=title)
+        self.host = host
+        self.port = port
+        self.app = FastAPI()
+        self.title = title
         
+        define_endpoints(self.app, view_callback, self.get_response_callback)
+    
+    @classmethod
+    def from_config(cls, config: dict, callback: Callable) -> 'StreamlitView':
+        host = config.get('host', 'localhost')
+        port = config.get('port', 8501)
+        title = config.get('title', "Streamlit Chatbot Interface")
+        instance = cls(callback, host=host, port=port, title=title)
+        return instance
+    
     def set_redis_client(self, redis_client):
         super().set_redis_client(redis_client)
         
@@ -44,9 +59,24 @@ class View(RedisEnabledMixin, BaseView):
             return await self.redis.get_first_ai_response(thread_id)
         return None
 
+    async def run_uvicorn(self) -> None:
+        """Run the FastAPI server."""
+        logger.info("Starting FastAPI server", extra={"host": self.host, "port": self.port})
+        config = uvicorn.Config(self.app, host=self.host, port=self.port, log_level="info", loop="asyncio")
+        server = uvicorn.Server(config)
+        await server.serve()
+
+    async def run_fastapi(self) -> asyncio.Task:
+        """Start the FastAPI server."""
+        return asyncio.create_task(self.run_uvicorn())
+
     async def run(self, title="Streamlit Chatbot Interface"):
-        # Offload the blocking call to a thread
-        await asyncio.to_thread(self.run_streamlit, title)
+        # Start both the FastAPI server and Streamlit
+        fastapi_task = self.run_fastapi()
+        streamlit_task = asyncio.create_task(asyncio.to_thread(self.run_streamlit, title))
+        
+        # Wait for both tasks to complete
+        return asyncio.gather(fastapi_task, streamlit_task)
         
     def run_sync(self, title="Streamlit Chatbot Interface"):
         # Optionally, you can call the sync version from your main code:
