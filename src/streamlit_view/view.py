@@ -227,7 +227,7 @@ class StreamlitView(RedisEnabledMixin, BaseView):
             # Create an AgentRequest for deleting a specific chat
             agent_request = AgentRequest(
                 chat_id=int(chat_id),
-                type=AgentRequestType.DELETE_ENTRIES_BY_THREAD_ID,
+                type=AgentRequestType.DELETE_ENTRIES_BY_CHAT_ID,
                 message=None
             )
             

@@ -46,7 +46,7 @@ def generate_chat_id():
 
 def load_chat_history():
     """Load chat history from disk."""
-    dir_path = "view/.streamlit"
+    dir_path = "view_utils/.streamlit"
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
     
@@ -58,7 +58,7 @@ def load_chat_history():
 
 def save_chat_history(chat_id: str, messages: list):
     """Save chat history to disk."""
-    with shelve.open("view/.streamlit/single_chat_history") as db:
+    with shelve.open("view_utils/.streamlit/single_chat_history") as db:
         db["chat_id"] = chat_id
         db["messages"] = messages
 
@@ -78,9 +78,11 @@ def clear_chat_history():
     chat_id = generate_chat_id()
     st.session_state.chat_id = chat_id
     st.session_state.messages = []
+    
+    # Reset message queue and tracking sets
     st.session_state.ai_messages_queue = []
     
-    # Clear the sets that track message responses
+    # Reset the tracking sets
     st.session_state.waiting_response_for = set()
     st.session_state.received_response_for = set()
     
@@ -89,6 +91,8 @@ def clear_chat_history():
     
     # Tell the backend to delete all history
     StreamlitView.delete_all_history()
+    
+    logger.info(f"Chat history cleared, new chat ID: {chat_id}")
 
 
 def waiting_response():
@@ -200,6 +204,9 @@ def check_ai_response():
             logger.info(f"AI response: {ai_message}")
             st.session_state.messages.append({"role": "assistant", "content": ai_message})
             logger.info(f"AI response for chat {st.session_state.chat_id}: {ai_message}")
+            
+            # Save chat history after receiving AI response
+            save_chat_history(st.session_state.chat_id, st.session_state.messages)
         
     except Exception as e:
         logger.error(f"Error fetching messages: {e}")
@@ -242,4 +249,3 @@ save_chat_history(st.session_state.chat_id, st.session_state.messages)
 
 # Run fragments to check and render responses
 get_ai_messages()
-

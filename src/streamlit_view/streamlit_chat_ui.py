@@ -75,19 +75,19 @@ def generate_short_uuid():
     return str(random.randint(10000000, 99999999))
 
 def load_chat_history():
-    dir_path = "view/.streamlit"
+    dir_path = "view_utils/.streamlit"
     
     # Create the directory if it doesn't exist
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
     
     with shelve.open(f"{dir_path}/chat_history") as db:
-        return db.get("messages", [])
+        return db.get("chats", {}), db.get("current_chat_id", None)
 
 
 # Save chat history to shelve file
-def save_chat_history(messages):
-    with shelve.open("view/.streamlit/chat_history") as db:
+def save_chat_history(chats, current_chat_id):
+    with shelve.open("view_utils/.streamlit/chat_history") as db:
         db["chats"] = chats
         db["current_chat_id"] = current_chat_id
 
@@ -100,6 +100,8 @@ def export_chat_to_text(chat_messages):
 
 if "chats" not in st.session_state or "current_chat_id" not in st.session_state:
     loaded_chats, loaded_current_id = load_chat_history()
+    
+    logger.info(f"Loaded chat history: {loaded_chats}, {loaded_current_id}")
     if not loaded_chats:
         new_chat_id = generate_short_uuid()
         loaded_chats = {
@@ -137,6 +139,13 @@ def delete_all_chat_histories():
         "messages": []
     }
     st.session_state.current_chat_id = new_chat_id
+    
+    st.session_state.ai_messages_queue = {}
+    st.session_state.waiting_response_for = {}
+    st.session_state.received_response_for = {}
+    
+    st.session_state.waiting_response_for[st.session_state.current_chat_id] = set()
+    st.session_state.received_response_for[st.session_state.current_chat_id] = set()
     save_chat_history(st.session_state.chats, st.session_state.current_chat_id)
     StreamlitView.delete_all_history()
 
@@ -292,6 +301,8 @@ def check_ai_response():
             logger.info(f"AI response: {ai_message}")
             current_chat["messages"].append({"role": "assistant", "content": ai_message})
             logger.info(f"AI response for chat {current_chat_id}: {ai_message}")
+            save_chat_history(st.session_state.chats, st.session_state.current_chat_id)
+
         
     except Exception as e:
         logger.error(f"Error fetching messages: {e}")
