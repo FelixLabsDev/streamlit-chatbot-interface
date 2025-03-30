@@ -9,6 +9,9 @@ import os
 from pathlib import Path
 import logging
 import uuid
+import random
+import time
+
 
 #######################################################################################################
 #######################################################################################################
@@ -36,7 +39,9 @@ if root_dir not in sys.path:
     sys.path.append(root_dir)
 
 # Now your imports should work
-from streamlit_view.view import send_input, delete_all_history, delete_chat, get_response
+# from streamlit_view.view import send_input, delete_all_history, delete_chat, get_response
+
+from streamlit_view.view import StreamlitView
 
 #######################################################################################################
 #######################################################################################################
@@ -44,7 +49,7 @@ from streamlit_view.view import send_input, delete_all_history, delete_chat, get
 load_dotenv()
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Argument parser to handle command-line arguments
@@ -65,7 +70,8 @@ USER_AVATAR = "👤"
 BOT_AVATAR = "🤖"
 
 def generate_short_uuid():
-    return uuid.uuid4().hex[:8]
+    # return uuid.uuid4().hex[:8]
+    return str(random.randint(10000000, 99999999))
 
 def load_chat_history():
     dir_path = "view/.streamlit"
@@ -107,13 +113,18 @@ if "chats" not in st.session_state or "current_chat_id" not in st.session_state:
 if "waiting_response" not in st.session_state:
     st.session_state.waiting_response = False
 
+# Add waiting_response_for and received_response_for tracking
+if "waiting_response_for" not in st.session_state:
+    st.session_state.waiting_response_for = {}
+
+if "received_response_for" not in st.session_state:
+    st.session_state.received_response_for = {}
     
 if 'ai_messages_queue' not in st.session_state:
     st.session_state.ai_messages_queue = {}  # Queue for messages
 
 
 st.session_state.ai_messages_queue[st.session_state.current_chat_id] = []
-
 
 def delete_all_chat_histories():
     st.session_state.chats = {}
@@ -124,7 +135,7 @@ def delete_all_chat_histories():
     }
     st.session_state.current_chat_id = new_chat_id
     save_chat_history(st.session_state.chats, st.session_state.current_chat_id)
-    delete_all_history()
+    StreamlitView.delete_all_history()
 
 with st.sidebar:
     if st.button("New Chat"):
@@ -182,7 +193,7 @@ with st.sidebar:
                     type="primary"
                 ):
                     del st.session_state.chats[chat_id]
-                    delete_chat(chat_id)
+                    StreamlitView.delete_chat(chat_id)
                     if st.session_state.current_chat_id == chat_id:
                         if len(st.session_state.chats) > 0:
                             st.session_state.current_chat_id = next(iter(st.session_state.chats.keys()))
@@ -198,49 +209,99 @@ with st.sidebar:
         delete_all_chat_histories()
         st.rerun()
 
-@st.fragment(run_every=1)
+def waiting_response(chat_id):
+    return st.session_state.waiting_response_for.get(chat_id, set())
+
+def received_response(chat_id):
+    return st.session_state.received_response_for.get(chat_id, set())
+
+
 def render_ai_response():
-    if not st.session_state.ai_messages_queue[st.session_state.current_chat_id]:
-        return 
+    current_chat_id = st.session_state.current_chat_id
+
+    logger.info('Render AI response')
+    logger.debug(f'st.session_state.waiting_response_for: {st.session_state.waiting_response_for}')
+    logger.debug(f'st.session_state.received_response_for: {st.session_state.received_response_for}')
+   
+    
+    # if not received_response(current_chat_id):
+    #     return 
     
     logger.info(f'st.session_state.ai_messages_queue: {st.session_state.ai_messages_queue}')
-    for msg in st.session_state.ai_messages_queue[st.session_state.current_chat_id]:
+    for msg in st.session_state.ai_messages_queue[current_chat_id]:
         st.chat_message("assistant", avatar="🤖").write(msg)
+    
+    waiting = waiting_response(current_chat_id)
+    received = received_response(current_chat_id)
+    st.session_state.waiting_response_for[current_chat_id] = waiting - received
+    st.session_state.received_response_for[current_chat_id] = received - waiting
+    
     logger.info('Response sent successfully')
+    logger.debug(f'st.session_state.waiting_response_for: {st.session_state.waiting_response_for}')
+    logger.debug(f'st.session_state.received_response_for: {st.session_state.received_response_for}')
+    
+    
 
-@st.fragment(run_every=2)
 def check_ai_response():
-    if not st.session_state.waiting_response:
-        return
       
     current_chat_id = st.session_state.current_chat_id
 
     try:
-        # Fetch messages from backend
-        response = get_response(current_chat_id)
-        logger.info(f"Response content: {response.content}")
-        if response.status_code == 200:
-            data = response.json()
-            if data['status'] == 'success':
-                current_chat = st.session_state.chats[current_chat_id]
-                ai_response = data['ai_response']
-                st.session_state.ai_messages_queue[current_chat_id].append(ai_response)
-                logger.info(f"AI response: {ai_response}")
-                current_chat["messages"].append({"role": "assistant", "content": ai_response})
-                logger.info(f"AI response for chat {current_chat_id}: {ai_response}")
-                # # Debug logging for chat state
-                # logger.info(f"Current chat ID: {current_chat_id}")
-                # logger.info(f"Current chat state: {current_chat}")
-                # logger.info(f"Current chat messages: {current_chat.messages}")
-                # st.session_state.waiting_response = False  # Reset waiting state after successful response
-            elif data['status'] == 'pending':
-                # No messages available yet
-                pass
-        else:
-            logger.error(f"Unexpected response status: {response.status_code}")
-            st.warning("No messages available yet")
+        # Fetch messages from backend - now returns AgentResponse
+        agent_response = StreamlitView.get_response(current_chat_id)
+        logger.info(f"Response: {agent_response}")
+        
+        # Check the status of the AgentResponse
+        if agent_response.is_error():
+            # Error occurred
+            logger.error(f"Error response: {agent_response.metadata.values.get('error', 'Unknown error')}")
+            return
+            
+        if agent_response.is_pending():
+            # Response is pending
+            logger.info("Response is pending")
+            return
+        
+        # Process successful AgentResponse
+        if agent_response.is_success():
+            current_chat = st.session_state.chats[current_chat_id]
+            ai_message = agent_response.message
+            
+            # Process metadata if available
+            if agent_response.metadata and hasattr(agent_response.metadata, 'values'):
+                metadata = agent_response.metadata.values
+                
+                # Process message_ids in response metadata
+                if "message_id" in metadata:
+                    message_ids = metadata["message_id"]
+                    
+                    # Initialize received_response_for if needed
+                    if current_chat_id not in st.session_state.received_response_for:
+                        st.session_state.received_response_for[current_chat_id] = set()
+                    
+                    # Add message_ids to received_response_for set
+                    for msg_id in message_ids:
+                        st.session_state.received_response_for[current_chat_id].add(msg_id)
+                        logger.info(f"Added message_id {msg_id} to received_response_for[{current_chat_id}]")
+            
+            # Add the message to the queue
+            st.session_state.ai_messages_queue[current_chat_id].append(ai_message)
+            logger.info(f"AI response: {ai_message}")
+            current_chat["messages"].append({"role": "assistant", "content": ai_message})
+            logger.info(f"AI response for chat {current_chat_id}: {ai_message}")
+        
     except Exception as e:
         logger.error(f"Error fetching messages: {e}")
+        
+
+@st.fragment(run_every=4)
+def get_ai_messages():
+    render_ai_response()
+    if not waiting_response(st.session_state.current_chat_id):
+        return
+    
+    check_ai_response()
+
 
 # Display current chat
 current_chat = st.session_state.chats[st.session_state.current_chat_id]
@@ -249,27 +310,28 @@ for message in current_chat["messages"]:
     with st.chat_message(message["role"], avatar=avatar):
         st.markdown(message["content"])
 
-
 # Process user input
 if prompt := st.chat_input("How can I help?"):
-    
     
     current_chat["messages"].append({"role": "user", "content": prompt})
     
     with st.chat_message("user", avatar=USER_AVATAR):
         st.markdown(prompt)
 
-    # Send the input and set waiting_response to true
+    # Send the input and get message_id
     logger.info(f"Sending input to the model: {prompt}, {st.session_state.current_chat_id}")
-    send_input(prompt, st.session_state.current_chat_id)
-    st.session_state.waiting_response = True
+    message_id = str(uuid.uuid4())
+    if st.session_state.current_chat_id not in st.session_state.waiting_response_for:
+        st.session_state.waiting_response_for[st.session_state.current_chat_id] = set()
+    st.session_state.waiting_response_for[st.session_state.current_chat_id].add(message_id)
+    logger.info(f"Added message_id {message_id} to waiting_response_for[{st.session_state.current_chat_id}]")
     
+    response = StreamlitView.send_input(prompt, st.session_state.current_chat_id, message_id)
 
-    
-    
-# Run fragments to check and render responses
-render_ai_response()
-check_ai_response()
-    
+
+
 # Save chat history
 save_chat_history(st.session_state.chats, st.session_state.current_chat_id)
+
+# Run fragments to check and render responses
+get_ai_messages()
