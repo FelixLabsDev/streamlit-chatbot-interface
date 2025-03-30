@@ -5,7 +5,8 @@ import logging
 import uvicorn
 
 class Orchestrator():
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        print('hi')
         self.app = FastAPI()  # Create the FastAPI app instance
         self.logger = logging.getLogger("Orchestrator")
 

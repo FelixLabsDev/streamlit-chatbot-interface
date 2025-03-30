@@ -1,4 +1,4 @@
-from controller.controller import Orchestrator
+from sl_controller.controller import Orchestrator
 import logging
 import threading
 import os
