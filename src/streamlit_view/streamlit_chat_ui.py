@@ -1,8 +1,10 @@
 # from openai import OpenAI
+import time
+import datetime
 import streamlit as st
-from dotenv import load_dotenv 
+from dotenv import load_dotenv
 import os
-import shelve 
+import shelve
 import argparse
 import sys
 import os
@@ -46,6 +48,7 @@ from streamlit_view.view import StreamlitView
 #######################################################################################################
 #######################################################################################################
 
+
 load_dotenv()
 
 # Configure logging
@@ -58,13 +61,11 @@ parser.add_argument('--clean', action='store_true', help="Delete chat history be
 parser.add_argument('--title', type=str, default="Streamlit Chatbot Interface", help="Set the title of the app")
 args = parser.parse_args()
 
-st.title(args.title)
-logger.info("Streamlit app has started")
 
-# Display current chat ID under title
-if "current_chat_id" in st.session_state:
-    st.caption(f"Chat ID: {st.session_state.current_chat_id[:8]}")
-    
+# Use the title argument to set the title of the Streamlit app
+st.title(args.title)
+
+logger.info("Streamlit app has started")
 
 USER_AVATAR = "👤"
 BOT_AVATAR = "🤖"
@@ -75,15 +76,17 @@ def generate_short_uuid():
 
 def load_chat_history():
     dir_path = "view/.streamlit"
+    
+    # Create the directory if it doesn't exist
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
     
     with shelve.open(f"{dir_path}/chat_history") as db:
-        chats = db.get("chats", {})
-        current_chat_id = db.get("current_chat_id", None)
-        return chats, current_chat_id
+        return db.get("messages", [])
 
-def save_chat_history(chats, current_chat_id):
+
+# Save chat history to shelve file
+def save_chat_history(messages):
     with shelve.open("view/.streamlit/chat_history") as db:
         db["chats"] = chats
         db["current_chat_id"] = current_chat_id

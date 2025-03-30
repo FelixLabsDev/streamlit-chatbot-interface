@@ -61,6 +61,7 @@ class StreamlitView(RedisEnabledMixin, BaseView):
         await self.redis.store_ai_response(response)
 
     def run_streamlit(self, title):
+        logger.info("Running Streamlit app")
         try:
             filename = os.path.join(
                 os.path.dirname(__file__),
