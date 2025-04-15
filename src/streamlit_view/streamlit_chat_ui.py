@@ -264,18 +264,18 @@ def check_ai_response():
         logger.info(f"Response: {agent_response}")
         
         # Check the status of the AgentResponse
-        if agent_response.is_error():
+        if agent_response.is_error:
             # Error occurred
             logger.error(f"Error response: {agent_response.metadata.values.get('error', 'Unknown error')}")
             return
             
-        if agent_response.is_pending():
+        if agent_response.is_pending:
             # Response is pending
             logger.info("Response is pending")
             return
         
         # Process successful AgentResponse
-        if agent_response.is_success():
+        if agent_response.is_success:
             current_chat = st.session_state.chats[current_chat_id]
             ai_message = agent_response.message
             
@@ -308,7 +308,7 @@ def check_ai_response():
         logger.error(f"Error fetching messages: {e}")
         
 
-@st.fragment(run_every=4)
+@st.fragment(run_every=2)
 def get_ai_messages():
     render_ai_response()
     if not waiting_response(st.session_state.current_chat_id):

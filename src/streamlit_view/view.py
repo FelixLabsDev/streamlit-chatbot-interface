@@ -10,10 +10,16 @@ from typing import Callable, Dict, Any, Optional, Tuple, Union
 from fastapi import FastAPI
 from streamlit_view.view_configurations import define_endpoints
 # from orchestrator.utils.schemas import AgentRequest, AgentResponse, AgentRequestType, ResponseStatus
-from utils.schemas import AgentRequest, AgentResponse, AgentRequestType, ResponseStatus, Metadata
+from utils.schemas import AgentRequest, AgentResponse, AgentRequestType, RequestStatus, Metadata
 from view_utils.view_abc import BaseView, RedisEnabledMixin
 
 from utils.logging_config import get_logger
+from utils.config_loader import Config
+
+# Load configuration first
+config = Config.from_yaml("configs/config.yml")
+HOST = config.view.fastapi.host
+PORT = config.view.fastapi.port
 
 
 # Configure logging
@@ -23,12 +29,13 @@ logger = get_logger(__name__)
 class StreamlitView(RedisEnabledMixin, BaseView):
     
     def __init__(self, config, view_callback, title="Streamlit Chatbot Interface", host="0.0.0.0", port=5051):
-        logging.info("Initializing View class")
+        logging.info("Initializing StreamlitView")
+        logging.info(f"host: {host}, port: {port}, title: {title}")
         self.config = config
         self.host = host
         self.port = port
-        self.app = FastAPI()
         self.title = title
+        self.app = FastAPI()
         
         define_endpoints(self.app, view_callback, self.get_response_callback)
     
@@ -44,8 +51,6 @@ class StreamlitView(RedisEnabledMixin, BaseView):
         Returns:
             StreamlitView: A configured view instance
         """
-        # Direct instantiation using the config object properties
-        print('View config:', config)
         return cls(
             config,
             callback,
@@ -60,15 +65,14 @@ class StreamlitView(RedisEnabledMixin, BaseView):
     async def send_message(self, response: AgentResponse):
         await self.redis.store_ai_response(response)
 
-    def run_streamlit(self, title):
+    def run_streamlit(self):
         logger.info("Running Streamlit app")
         try:
             filename = os.path.join(
                 os.path.dirname(__file__),
                 self.config.ui_file
             )
-            # command = ["streamlit", "run", filename, "--", "--clean", "--title", title]
-            command = ["streamlit", "run", filename, "--", "--title", title]
+            command = ["streamlit", "run", filename, "--", "--title", self.title]
             env = os.environ.copy()
             env["PYTHONPATH"] = os.path.abspath(
                 os.path.join(os.path.dirname(__file__), "../../")
@@ -76,7 +80,7 @@ class StreamlitView(RedisEnabledMixin, BaseView):
 
             subprocess.run(command, check=True, env=env)
         except subprocess.CalledProcessError as e:
-            logging.error(f"Error occurred while running command: {e}")
+            logger.error(f"Error running Streamlit: {e}")
             
     async def get_response_callback(self, chat_id: str) -> AgentResponse:
         """Get AI response for a specific chat"""
@@ -96,148 +100,119 @@ class StreamlitView(RedisEnabledMixin, BaseView):
         return asyncio.create_task(self.run_uvicorn())
 
     async def run(self):
-        # Start both the FastAPI server and Streamlit
+        """Run both FastAPI server and Streamlit application."""
         fastapi_task = self.run_fastapi()
-        streamlit_task = asyncio.create_task(asyncio.to_thread(self.run_streamlit, self.title))
+        streamlit_task = asyncio.create_task(asyncio.to_thread(self.run_streamlit))
         
-        # Wait for both tasks to complete
         return await asyncio.gather(fastapi_task, streamlit_task)
         
     def run_sync(self, title="Streamlit Chatbot Interface"):
-        # Optionally, you can call the sync version from your main code:
+        """Run Streamlit synchronously."""
         self.run_streamlit(title)
 
     @staticmethod
     def send_input(user_input, chat_id, message_id) -> Tuple[Union[requests.Response, str], Optional[str]]:
-        logger.info("Inside send_input")
-        logger.info(f"User input: {user_input}")
+        """Send user input to the FastAPI server."""
+        logger.info(f"Sending user input for chat_id: {chat_id}")
+        logger.debug(f"posting to http://{HOST}:{PORT}/input")
         try:
-            # Create a unique message_id for tracking
+            # Create metadata with message_id
+            metadata = Metadata().add("message_id", message_id)
             
-            # Create a Metadata object with message_id
-            metadata = Metadata()
-            metadata.add("message_id", message_id)
-            
-            # Create an AgentRequest object
-            agent_request = AgentRequest(
+            # Create request using the class method
+            agent_request = AgentRequest.text(
                 chat_id=int(chat_id),
-                type=AgentRequestType.TEXT,
                 message=user_input,
-                user_details={},
-                bypass=False,
                 metadata=metadata
             )
             
-            # Serialize AgentRequest to JSON for the HTTP request
-            request_json = json.loads(agent_request.model_dump_json())
-            
-            # Sending the AgentRequest to FastAPI
+            # Send request to FastAPI server
             response = requests.post(
-                "http://localhost:5051/input", 
-                json=request_json
+                # f"http://{StreamlitView.host}:{StreamlitView.port}/input", 
+                f"http://localhost:{PORT}/input", 
+                json=json.loads(agent_request.model_dump_json())
             )
-            logger.info(f"SEND_INPUT Response: {response}")
             
-            # Return both the response and the message_id
-            if response.status_code == 200:
+            if response.status_code == RequestStatus.SUCCESS.code:
                 return response
             else:
-                return "Error: Failed to get AI response", None
+                return f"Error: Request failed with status code {response.status_code}", None
         except requests.exceptions.RequestException as e:
+            logger.error(f"Network error: {e}")
             return f"Error: {str(e)}", None
         except Exception as e:
-            logger.error(f"Error in send_input: {str(e)}")
+            logger.error(f"Error sending input: {e}")
             return f"Error: {str(e)}", None
 
     @staticmethod
     def get_response(chat_id) -> AgentResponse:
-        logger.info(f"Inside get_response for chat_id: {chat_id}")
+        """Get AI response from the FastAPI server."""
+        logger.info(f"Getting response for chat_id: {chat_id}")
         try:
-            # Get response from the server
-            response = requests.get(
-                f"http://localhost:5051/get_response?chat_id={chat_id}"
-            )
-            logger.info(f"GET_RESPONSE Response: {response}")
+            response = requests.get(f"http://{HOST}:{PORT}/get_response?chat_id={chat_id}")
             
-            # If successful, parse the JSON into an AgentResponse
-            if response.status_code == 200:
+            if response.status_code == RequestStatus.SUCCESS.code:
                 data = response.json()
-                if data['status'] == 'success':
-                    # Parse the JSON response directly into an AgentResponse
+                
+                if data['status'] == RequestStatus.SUCCESS.value:
+                    # Parse response as AgentResponse if available
                     if 'ai_response' in data and isinstance(data['ai_response'], dict):
-                        # The ai_response already contains the full AgentResponse structure
-                        agent_response = AgentResponse.model_validate(data['ai_response'])
-                        return agent_response
-                    else:
-                        # Create an AgentResponse with a message only
-                        metadata = Metadata()
-                        metadata.add("message_id", str(uuid.uuid4()))
-                        
-                        return AgentResponse(
-                            chat_id=int(chat_id),
-                            message=data.get('ai_response'),
-                            status=ResponseStatus.SUCCESS,
-                            metadata=metadata
-                        )
-                else:
-                    # Return a pending response
-                    return AgentResponse.pending(chat_id=int(chat_id))
+                        return AgentResponse.model_validate(data['ai_response'])
+                    
+                    # Create new AgentResponse with message only
+                    metadata = Metadata().add("message_id", str(uuid.uuid4()))
+                    
+                    return AgentResponse(
+                        chat_id=int(chat_id),
+                        message=data.get('ai_response'),
+                        status=RequestStatus.SUCCESS,
+                        metadata=metadata
+                    )
+                
+                # Return pending response
+                return AgentResponse.pending(chat_id=int(chat_id))
             
-            # Return an error response for non-200 status codes
-            metadata = Metadata()
-            metadata.add("error", f"Unexpected status code {response.status_code}")
+            # Return error response for non-200 status codes
+            metadata = Metadata().add("error", f"Unexpected status code {response.status_code}")
             return AgentResponse.error(chat_id=int(chat_id), metadata=metadata)
             
-        except requests.exceptions.RequestException as e:
-            # Return an error response for request exceptions
-            metadata = Metadata()
-            metadata.add("error", str(e))
-            return AgentResponse.error(chat_id=int(chat_id), metadata=metadata)
         except Exception as e:
-            logger.error(f"Error in get_response: {str(e)}")
-            # Return an error response for any other exceptions
-            metadata = Metadata()
-            metadata.add("error", str(e))
+            logger.error(f"Error getting response: {e}")
+            metadata = Metadata().add("error", str(e))
             return AgentResponse.error(chat_id=int(chat_id), metadata=metadata)
 
     @staticmethod
     def delete_all_history():
+        """Delete all chat history."""
         try:
-            # Create an AgentRequest for deleting all history
-            agent_request = AgentRequest(
-                chat_id=0,  # Using 0 as a placeholder for all chats
-                type=AgentRequestType.DELETE_HISTORY,
-                message=None
+            agent_request = AgentRequest.delete_history()
+            response = requests.post(
+                f"http://{HOST}:{PORT}/delete_all_history", 
+                json=json.loads(agent_request.model_dump_json())
             )
             
-            # Serialize and send the request
-            request_json = json.loads(agent_request.model_dump_json())
-            response = requests.post("http://localhost:5051/delete_all_history", json=request_json)
-            
-            if response.status_code == 200:
-                return response.json().get("graph_response", "history not deleted")
+            if response.status_code == RequestStatus.SUCCESS.code:
+                return "History deleted successfully"
             else:
-                return "Error: Failed to delete all chat history"
-        except requests.exceptions.RequestException as e:
+                return f"Error: Failed to delete history (code: {response.status_code})"
+        except Exception as e:
+            logger.error(f"Error deleting history: {e}")
             return f"Error: {str(e)}"
 
     @staticmethod
     def delete_chat(chat_id):
+        """Delete chat history for a specific chat."""
         try:
-            # Create an AgentRequest for deleting a specific chat
-            agent_request = AgentRequest(
-                chat_id=int(chat_id),
-                type=AgentRequestType.DELETE_ENTRIES_BY_CHAT_ID,
-                message=None
+            agent_request = AgentRequest.delete_entries_by_chat_id(chat_id=int(chat_id))
+            response = requests.post(
+                f"http://{HOST}:{PORT}/delete_chat", 
+                json=json.loads(agent_request.model_dump_json())
             )
             
-            # Serialize and send the request
-            request_json = json.loads(agent_request.model_dump_json())
-            response = requests.post("http://localhost:5051/delete_chat", json=request_json)
-            
-            if response.status_code == 200:
-                return response.json().get("graph_response", "history not deleted")
+            if response.status_code == RequestStatus.SUCCESS.code:
+                return "Chat deleted successfully"
             else:
-                return "Error: Failed to delete chat history"
-        except requests.exceptions.RequestException as e:
+                return f"Error: Failed to delete chat (code: {response.status_code})"
+        except Exception as e:
+            logger.error(f"Error deleting chat: {e}")
             return f"Error: {str(e)}"
