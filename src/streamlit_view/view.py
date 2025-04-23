@@ -63,6 +63,15 @@ class StreamlitView(RedisEnabledMixin, BaseView):
         super().set_redis_client(redis_client)
         
     async def send_message(self, response: AgentResponse):
+        # Add diagnostic logging
+        logger.debug(
+            "Streamlit view send_message received response",
+            extra={
+                "response_type": type(response).__name__,
+                "response_repr": repr(response)[:100] + "..." if len(repr(response)) > 100 else repr(response),
+                "is_string": isinstance(response, str)
+            }
+        )
         await self.redis.store_ai_response(response)
 
     def run_streamlit(self):

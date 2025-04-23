@@ -5,7 +5,6 @@ import shelve
 import argparse
 import sys
 from pathlib import Path
-import logging
 import uuid
 import random
 import time
@@ -17,12 +16,12 @@ if root_dir not in sys.path:
 
 # Import the StreamlitView
 from streamlit_view.view import StreamlitView
+from utils.logging_config import get_logger
 
 load_dotenv()
 
-# Configure logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+# Set up logging
+logger = get_logger(__name__)
 
 # Argument parser to handle command-line arguments
 parser = argparse.ArgumentParser(description="Streamlit Single Chat Interface")
