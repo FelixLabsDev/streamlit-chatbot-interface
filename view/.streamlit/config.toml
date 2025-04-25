@@ -4,5 +4,3 @@ backgroundColor="#000000"
 secondaryBackgroundColor="#3a3b3d"
 textColor="#FFFFFF"
 font="sans serif"
-[logger]
-level = "warning"

@@ -4,7 +4,6 @@ import logging
 from pydantic import ValidationError
 import json
 import os
-from utils.logging_config import get_logger
 
 print("Current working directory:", os.getcwd())
 
@@ -13,7 +12,7 @@ print("Current working directory:", os.getcwd())
 from utils.schemas import AgentRequest, AgentResponse, AgentRequestType, RequestStatus
 
 # logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = get_logger(__name__)
+logger = logging.getLogger("view_configurations")
 
 def define_endpoints(app, view_callback, get_response_callback):
     @app.post("/input")
@@ -33,7 +32,7 @@ def define_endpoints(app, view_callback, get_response_callback):
         except HTTPException:
             raise
         except Exception as e:
-            logger.exception(f"Error processing input: {e}")
+            logger.error(f"Error processing input: {e}")
             raise HTTPException(status_code=RequestStatus.ERROR.code, detail=str(e))
         
     @app.get("/get_response")
@@ -49,7 +48,7 @@ def define_endpoints(app, view_callback, get_response_callback):
                 "ai_response": ai_response
             }, status_code=agent_response.status.code)
         except Exception as e:
-            logger.exception(f"Error retrieving response: {e}")
+            logger.error(f"Error retrieving response: {e}")
             raise HTTPException(status_code=RequestStatus.ERROR.code, detail=str(e))
 
     @app.post("/delete_all_history")
@@ -64,7 +63,7 @@ def define_endpoints(app, view_callback, get_response_callback):
                 status_code=RequestStatus.SUCCESS.code
             )
         except Exception as e:
-            logger.exception(f"Error deleting history: {e}")
+            logger.error(f"Error deleting history: {e}")
             raise HTTPException(status_code=RequestStatus.ERROR.code, detail=str(e))
         
     @app.post("/delete_chat")
@@ -88,5 +87,5 @@ def define_endpoints(app, view_callback, get_response_callback):
         except HTTPException:
             raise
         except Exception as e:
-            logger.exception(f"Error deleting chat: {e}")
+            logger.error(f"Error deleting chat: {e}")
             raise HTTPException(status_code=RequestStatus.ERROR.code, detail=str(e))
