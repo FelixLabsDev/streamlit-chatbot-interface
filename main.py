@@ -4,13 +4,15 @@ import threading
 import os
 
 # Initialize logging
+from utils.logging_config import setup_logging
+
 setup_logging(
     default_level="INFO",
     log_dir="data/logs",
     enable_colors=True
 )
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 from datetime import datetime
 
 class UTF8LogFilter(logging.Filter):

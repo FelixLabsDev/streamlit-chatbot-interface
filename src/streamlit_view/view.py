@@ -13,7 +13,7 @@ from streamlit_view.view_configurations import define_endpoints
 from utils.schemas import AgentRequest, AgentResponse, AgentRequestType, RequestStatus, Metadata
 from view_utils.view_abc import BaseView, RedisEnabledMixin
 
-from utils.logging_config import get_logger
+
 from utils.config_loader import Config
 
 # Load configuration first
@@ -24,7 +24,7 @@ PORT = config.view.fastapi.port
 
 # Configure logging
 # logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 class StreamlitView(RedisEnabledMixin, BaseView):
     
