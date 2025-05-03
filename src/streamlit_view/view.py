@@ -72,7 +72,7 @@ class StreamlitView(RedisEnabledMixin, BaseView):
                 os.path.dirname(__file__),
                 self.config.ui_file
             )
-            command = ["streamlit", "run", filename, "--", "--title", self.title]
+            command = ["streamlit", "run", filename, "--logger.level=error", "--", "--title", self.title]
             env = os.environ.copy()
             env["PYTHONPATH"] = os.path.abspath(
                 os.path.join(os.path.dirname(__file__), "../../")
@@ -90,8 +90,8 @@ class StreamlitView(RedisEnabledMixin, BaseView):
 
     async def run_uvicorn(self) -> None:
         """Run the FastAPI server."""
-        logger.info("Starting FastAPI server", extra={"host": self.host, "port": self.port})
-        config = uvicorn.Config(self.app, host=self.host, port=self.port, log_level="info", loop="asyncio")
+        logger.info(f"Starting FastAPI server", extra={"host": self.host, "port": self.port})
+        config = uvicorn.Config(self.app, host=self.host, port=self.port, log_level="warning", loop="asyncio")
         server = uvicorn.Server(config)
         await server.serve()
 

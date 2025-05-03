@@ -5,14 +5,14 @@ from pydantic import ValidationError
 import json
 import os
 
-print("Current working directory:", os.getcwd())
 
 
 # from orchestrator.utils.schemas import AgentRequest, AgentResponse, AgentRequestType, ResponseStatus
 from utils.schemas import AgentRequest, AgentResponse, AgentRequestType, RequestStatus
 
 # logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger("view_configurations")
+logger = logging.getLogger(__name__)
+logger.debug(f"Current working directory: {os.getcwd()}")
 
 def define_endpoints(app, view_callback, get_response_callback):
     @app.post("/input")

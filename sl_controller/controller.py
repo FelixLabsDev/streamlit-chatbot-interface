@@ -8,7 +8,7 @@ class Orchestrator():
     def __init__(self, *args, **kwargs):
         print('hi')
         self.app = FastAPI()  # Create the FastAPI app instance
-        self.logger = logging.getLogger("Orchestrator")
+        self.logger = logging.getLogger(__name__)
 
         self.model = Graph(clean=True, DEBUG=True)
         self.view = View(self.app, self.view_callback)
