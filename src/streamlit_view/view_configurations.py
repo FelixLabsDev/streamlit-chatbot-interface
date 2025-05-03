@@ -9,7 +9,8 @@ print("Current working directory:", os.getcwd())
 
 
 # from orchestrator.utils.schemas import AgentRequest, AgentResponse, AgentRequestType, ResponseStatus
-from utils.schemas import AgentRequest, AgentResponse, AgentRequestType, RequestStatus
+# Todo: Need to create own schemas for views, and combine views into one repo
+from agent_ti.utils.schemas import AgentRequest, AgentRequestType, AgentResponse, RequestStatus
 
 # logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("view_configurations")
@@ -32,7 +33,7 @@ def define_endpoints(app, view_callback, get_response_callback):
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Error processing input: {e}")
+            logger.error(f"Error processing input: {e}", exc_info=True)
             raise HTTPException(status_code=RequestStatus.ERROR.code, detail=str(e))
         
     @app.get("/get_response")
@@ -77,7 +78,7 @@ def define_endpoints(app, view_callback, get_response_callback):
                 raise HTTPException(status_code=RequestStatus.ERROR.code, detail="No chat ID provided")
             
             # Create proper request using the class method
-            agent_request = AgentRequest.delete_entries_by_chat_id(chat_id=int(agent_request.chat_id))
+            agent_request = AgentRequest.delete_entries_by_chat_id(chat_id=str(agent_request.chat_id))
             
             await view_callback(agent_request)
             return JSONResponse(

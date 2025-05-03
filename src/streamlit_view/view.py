@@ -10,7 +10,8 @@ from typing import Callable, Dict, Any, Optional, Tuple, Union
 from fastapi import FastAPI
 from streamlit_view.view_configurations import define_endpoints
 # from orchestrator.utils.schemas import AgentRequest, AgentResponse, AgentRequestType, ResponseStatus
-from utils.schemas import AgentRequest, AgentResponse, AgentRequestType, RequestStatus, Metadata
+# Todo: Need to create own schemas for views, and combine views into one repo
+from agent_ti.utils.schemas import AgentRequest, AgentRequestType, AgentResponse, RequestStatus, Metadata 
 from view_utils.view_abc import BaseView, RedisEnabledMixin
 
 from utils.logging_config import get_logger
@@ -121,7 +122,7 @@ class StreamlitView(RedisEnabledMixin, BaseView):
             
             # Create request using the class method
             agent_request = AgentRequest.text(
-                chat_id=int(chat_id),
+                chat_id=str(chat_id),
                 message=user_input,
                 metadata=metadata
             )
@@ -163,23 +164,23 @@ class StreamlitView(RedisEnabledMixin, BaseView):
                     metadata = Metadata().add("message_id", str(uuid.uuid4()))
                     
                     return AgentResponse(
-                        chat_id=int(chat_id),
+                        chat_id=str(chat_id),
                         message=data.get('ai_response'),
                         status=RequestStatus.SUCCESS,
                         metadata=metadata
                     )
                 
                 # Return pending response
-                return AgentResponse.pending(chat_id=int(chat_id))
+                return AgentResponse.pending(chat_id=str(chat_id))
             
             # Return error response for non-200 status codes
             metadata = Metadata().add("error", f"Unexpected status code {response.status_code}")
-            return AgentResponse.error(chat_id=int(chat_id), metadata=metadata)
+            return AgentResponse.error(chat_id=str(chat_id), metadata=metadata)
             
         except Exception as e:
             logger.error(f"Error getting response: {e}")
             metadata = Metadata().add("error", str(e))
-            return AgentResponse.error(chat_id=int(chat_id), metadata=metadata)
+            return AgentResponse.error(chat_id=str(chat_id), metadata=metadata)
 
     @staticmethod
     def delete_all_history():
@@ -203,7 +204,7 @@ class StreamlitView(RedisEnabledMixin, BaseView):
     def delete_chat(chat_id):
         """Delete chat history for a specific chat."""
         try:
-            agent_request = AgentRequest.delete_entries_by_chat_id(chat_id=int(chat_id))
+            agent_request = AgentRequest.delete_entries_by_chat_id(chat_id=str(chat_id))
             response = requests.post(
                 f"http://{HOST}:{PORT}/delete_chat", 
                 json=json.loads(agent_request.model_dump_json())
