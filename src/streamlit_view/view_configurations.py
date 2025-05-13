@@ -5,7 +5,7 @@ from pydantic import ValidationError
 import json
 import os
 
-print("Current working directory:", os.getcwd())
+# print("Current working directory:", os.getcwd())
 
 
 # from orchestrator.utils.schemas import AgentRequest, AgentResponse, AgentRequestType, ResponseStatus

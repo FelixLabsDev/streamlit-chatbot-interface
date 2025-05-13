@@ -18,6 +18,7 @@ from utils.logging_config import get_logger
 from utils.config_loader import Config
 
 # Load configuration first
+# Todo: should be passed from the controller
 config = Config.from_yaml("configs/config.yml")
 HOST = config.view.fastapi.host
 PORT = config.view.fastapi.port
