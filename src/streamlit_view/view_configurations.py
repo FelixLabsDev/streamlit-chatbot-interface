@@ -13,7 +13,7 @@ import os
 from agent_ti.utils.schemas import AgentRequest, AgentRequestType, AgentResponse, RequestStatus
 
 # logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger("view_configurations")
+logger = logging.getLogger(__name__)
 
 def define_endpoints(app, view_callback, get_response_callback):
     @app.post("/input")
