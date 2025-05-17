@@ -8,9 +8,8 @@ import os
 # print("Current working directory:", os.getcwd())
 
 
-# from orchestrator.utils.schemas import AgentRequest, AgentResponse, AgentRequestType, ResponseStatus
 # Todo: Need to create own schemas for views, and combine views into one repo
-from agent_ti.utils.schemas import AgentRequest, AgentRequestType, AgentResponse, RequestStatus
+from agent_ti.utils.schemas import AgentRequest, AgentResponse, RequestStatus
 
 # logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)

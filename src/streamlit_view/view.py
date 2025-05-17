@@ -9,9 +9,8 @@ import json
 from typing import Callable, Dict, Any, Optional, Tuple, Union
 from fastapi import FastAPI
 from streamlit_view.view_configurations import define_endpoints
-# from orchestrator.utils.schemas import AgentRequest, AgentResponse, AgentRequestType, ResponseStatus
 # Todo: Need to create own schemas for views, and combine views into one repo
-from agent_ti.utils.schemas import AgentRequest, AgentRequestType, AgentResponse, RequestStatus, Metadata 
+from agent_ti.utils.schemas import AgentRequest, AgentResponse, RequestStatus, Metadata 
 from view_utils.view_abc import BaseView, RedisEnabledMixin
 
 from utils.logging_config import get_logger
@@ -45,13 +44,6 @@ class StreamlitView(RedisEnabledMixin, BaseView):
     def from_config(cls, config, callback: Callable) -> 'StreamlitView':
         """
         Create a StreamlitView instance from configuration.
-        
-        Args:
-            config: StreamlitViewConfig with required fastapi settings
-            callback: The callback function to handle view events
-            
-        Returns:
-            StreamlitView: A configured view instance
         """
         return cls(
             config,
