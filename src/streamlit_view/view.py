@@ -30,8 +30,7 @@ logger = get_logger(__name__)
 class StreamlitView(RedisEnabledMixin, BaseView):
     
     def __init__(self, config, view_callback, title="Streamlit Chatbot Interface", host="0.0.0.0", port=5051):
-        logging.info("Initializing StreamlitView")
-        logging.info(f"host: {host}, port: {port}, title: {title}")
+        logging.info(f"Initializing StreamlitView - host: {host}, port: {port}, title: {title}")
         self.config = config
         self.host = host
         self.port = port
