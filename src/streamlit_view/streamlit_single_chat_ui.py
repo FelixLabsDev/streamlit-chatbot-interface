@@ -9,6 +9,8 @@ import logging
 import uuid
 import random
 import time
+import csv
+import io
 
 # Clear any cached fragments to prevent polling
 st.cache_data.clear()
@@ -80,15 +82,28 @@ def export_chat_to_text(messages: list) -> str:
     return export_text
 
 
+def export_chat_to_csv(messages: list) -> str:
+    """Convert chat messages to CSV format with sender and message columns."""
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Write header
+    writer.writerow(["sender", "message"])
+
+    # Write messages
+    for msg in messages:
+        sender = "human" if msg["role"] == "user" else "ai"
+        writer.writerow([sender, msg["content"]])
+
+    return output.getvalue()
+
+
 def clear_chat_history():
     """Clear the chat history and create a new chat session."""
     # Generate a new chat ID
     chat_id = generate_chat_id()
     st.session_state.chat_id = chat_id
     st.session_state.messages = []
-
-    # Reset pending responses
-    st.session_state.pending_responses = set()
 
     # Save empty history
     save_chat_history(chat_id, [])
@@ -99,42 +114,8 @@ def clear_chat_history():
     logger.info(f"Chat history cleared, new chat ID: {chat_id}")
 
 
-# Initialize session state
-if "chat_id" not in st.session_state or "messages" not in st.session_state:
-    loaded_chat_id, loaded_messages = load_chat_history()
-    if not loaded_chat_id:
-        # Create a new chat session
-        loaded_chat_id = generate_chat_id()
-        loaded_messages = []
-    st.session_state.chat_id = loaded_chat_id
-    st.session_state.messages = loaded_messages
-
-# Initialize pending responses tracking
-if "pending_responses" not in st.session_state:
-    st.session_state.pending_responses = set()
-
-# Display current chat ID under title
-st.caption(f"Chat ID: {st.session_state.chat_id}")
-
-# Sidebar with only the Clear History button
-with st.sidebar:
-    st.subheader("Chat Options")
-    if st.button("Clear History"):
-        clear_chat_history()
-        st.rerun()
-
-    # Optional: Add export functionality
-    export_text = export_chat_to_text(st.session_state.messages)
-    st.download_button(
-        label="Export to TXT",
-        data=export_text,
-        file_name=f"chat_{st.session_state.chat_id}.txt",
-        mime="text/plain",
-    )
-
-
-def check_for_ai_response(message_id):
-    """Check for AI response for a specific message and update chat if found."""
+def check_for_ai_response():
+    """Check for AI response and update chat if found."""
     try:
         # Fetch messages from backend - returns AgentResponse
         agent_response = StreamlitView.get_response(st.session_state.chat_id)
@@ -142,11 +123,10 @@ def check_for_ai_response(message_id):
 
         # Check the status of the AgentResponse
         if agent_response.is_error:
-            # Error occurred - remove from pending
+            # Error occurred
             logger.error(
                 f"Error response: {agent_response.metadata.values.get('error', 'Unknown error')}"
             )
-            st.session_state.pending_responses.discard(message_id)
             return False
 
         if agent_response.is_pending:
@@ -169,50 +149,55 @@ def check_for_ai_response(message_id):
             # Save chat history after receiving AI response
             save_chat_history(st.session_state.chat_id, st.session_state.messages)
 
-            # Remove from pending responses
-            st.session_state.pending_responses.discard(message_id)
-
             return True
 
     except Exception as e:
         logger.error(f"Error fetching messages: {e}")
-        # Remove from pending on error
-        st.session_state.pending_responses.discard(message_id)
         return False
 
 
-def has_pending_responses():
-    """Check if there are pending responses."""
-    return len(st.session_state.pending_responses) > 0
+# Initialize session state
+if "chat_id" not in st.session_state or "messages" not in st.session_state:
+    loaded_chat_id, loaded_messages = load_chat_history()
+    if not loaded_chat_id:
+        # Create a new chat session
+        loaded_chat_id = generate_chat_id()
+        loaded_messages = []
+    st.session_state.chat_id = loaded_chat_id
+    st.session_state.messages = loaded_messages
 
+# Display current chat ID under title
+st.caption(f"Chat ID: {st.session_state.chat_id}")
+
+# Sidebar with only the Clear History button
+with st.sidebar:
+    st.subheader("Chat Options")
+    if st.button("Clear History"):
+        clear_chat_history()
+        st.rerun()
+
+    # Export functionality
+    export_text = export_chat_to_text(st.session_state.messages)
+    st.download_button(
+        label="Export to TXT",
+        data=export_text,
+        file_name=f"chat_{st.session_state.chat_id}.txt",
+        mime="text/plain",
+    )
+
+    export_csv = export_chat_to_csv(st.session_state.messages)
+    st.download_button(
+        label="Export to CSV",
+        data=export_csv,
+        file_name=f"chat_{st.session_state.chat_id}.csv",
+        mime="text/csv",
+    )
 
 # Display message history
 for message in st.session_state.messages:
     avatar = USER_AVATAR if message["role"] == "user" else BOT_AVATAR
     with st.chat_message(message["role"], avatar=avatar):
         st.markdown(message["content"])
-
-# Show pending response indicator if there are pending responses
-if has_pending_responses():
-    with st.chat_message("assistant", avatar=BOT_AVATAR):
-        st.write("🤔 Thinking...")
-
-    # Check for responses for all pending messages
-    pending_messages = list(st.session_state.pending_responses)
-    response_received = False
-
-    for message_id in pending_messages:
-        if check_for_ai_response(message_id):
-            response_received = True
-            break  # Only process one response at a time
-
-    # If we received a response, rerun to update the UI
-    if response_received:
-        st.rerun()
-    else:
-        # Add a manual refresh button for user control
-        if st.button("🔄 Check for response", key="manual_refresh"):
-            st.rerun()
 
 # Process user input
 if prompt := st.chat_input("How can I help?"):
@@ -223,18 +208,31 @@ if prompt := st.chat_input("How can I help?"):
     with st.chat_message("user", avatar=USER_AVATAR):
         st.markdown(prompt)
 
-    # Send the input and track the message
+    # Send the input
     logger.info(f"Sending input to the model: {prompt}, {st.session_state.chat_id}")
     message_id = str(uuid.uuid4())
-    st.session_state.pending_responses.add(message_id)
-    logger.info(f"Added message_id {message_id} to pending_responses")
 
     # Send input to the model
     response = StreamlitView.send_input(prompt, st.session_state.chat_id, message_id)
 
-    # Save chat history and rerun to show the pending indicator
+    # Save chat history
     save_chat_history(st.session_state.chat_id, st.session_state.messages)
+
+# Check for AI response
+response_received = check_for_ai_response()
+if response_received:
     st.rerun()
+
+
+# Auto-refresh to check for responses every 2 seconds
+@st.fragment(run_every=2)
+def auto_check_responses():
+    response_received = check_for_ai_response()
+    if response_received:
+        st.rerun()
+
+
+auto_check_responses()
 
 # Save chat history
 save_chat_history(st.session_state.chat_id, st.session_state.messages)

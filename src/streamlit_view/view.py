@@ -9,8 +9,9 @@ import json
 from typing import Callable, Dict, Any, Optional, Tuple, Union
 from fastapi import FastAPI
 from streamlit_view.view_configurations import define_endpoints
+
 # Todo: Need to create own schemas for views, and combine views into one repo
-from agent_ti.utils.schemas import AgentRequest, AgentResponse, RequestStatus, Metadata 
+from agent_ti.utils.schemas import AgentRequest, AgentResponse, RequestStatus, Metadata
 from view_utils.view_abc import BaseView, RedisEnabledMixin
 
 from utils.logging_config import get_logger
@@ -27,20 +28,29 @@ PORT = config.view.fastapi.port
 # logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = get_logger(__name__)
 
+
 class StreamlitView(RedisEnabledMixin, BaseView):
-    
-    def __init__(self, config, view_callback, title="Streamlit Chatbot Interface", host="0.0.0.0", port=5051):
-        logging.info(f"Initializing StreamlitView - host: {host}, port: {port}, title: {title}")
+    def __init__(
+        self,
+        config,
+        view_callback,
+        title="Streamlit Chatbot Interface",
+        host="0.0.0.0",
+        port=5051,
+    ):
+        logging.info(
+            f"Initializing StreamlitView - host: {host}, port: {port}, title: {title}"
+        )
         self.config = config
         self.host = host
         self.port = port
         self.title = title
         self.app = FastAPI()
-        
+
         define_endpoints(self.app, view_callback, self.get_response_callback)
-    
+
     @classmethod
-    def from_config(cls, config, callback: Callable) -> 'StreamlitView':
+    def from_config(cls, config, callback: Callable) -> "StreamlitView":
         """
         Create a StreamlitView instance from configuration.
         """
@@ -49,22 +59,19 @@ class StreamlitView(RedisEnabledMixin, BaseView):
             callback,
             title=config.title,
             host=config.fastapi.host,
-            port=config.fastapi.port
+            port=config.fastapi.port,
         )
-    
+
     def set_redis_client(self, redis_client):
         super().set_redis_client(redis_client)
-        
+
     async def send_message(self, response: AgentResponse):
         await self.redis.store_ai_response(response)
 
     def run_streamlit(self):
         logger.info("Running Streamlit app")
         try:
-            filename = os.path.join(
-                os.path.dirname(__file__),
-                self.config.ui_file
-            )
+            filename = os.path.join(os.path.dirname(__file__), self.config.ui_file)
             command = ["streamlit", "run", filename, "--", "--title", self.title]
             env = os.environ.copy()
             env["PYTHONPATH"] = os.path.abspath(
@@ -74,7 +81,7 @@ class StreamlitView(RedisEnabledMixin, BaseView):
             subprocess.run(command, check=True, env=env)
         except subprocess.CalledProcessError as e:
             logger.error(f"Error running Streamlit: {e}")
-            
+
     async def get_response_callback(self, chat_id: str) -> AgentResponse:
         """Get AI response for a specific chat"""
         if self.redis and self.redis.client:
@@ -83,8 +90,12 @@ class StreamlitView(RedisEnabledMixin, BaseView):
 
     async def run_uvicorn(self) -> None:
         """Run the FastAPI server."""
-        logger.info("Starting FastAPI server", extra={"host": self.host, "port": self.port})
-        config = uvicorn.Config(self.app, host=self.host, port=self.port, log_level="info", loop="asyncio")
+        logger.info(
+            "Starting FastAPI server", extra={"host": self.host, "port": self.port}
+        )
+        config = uvicorn.Config(
+            self.app, host=self.host, port=self.port, log_level="info", loop="asyncio"
+        )
         server = uvicorn.Server(config)
         await server.serve()
 
@@ -96,40 +107,43 @@ class StreamlitView(RedisEnabledMixin, BaseView):
         """Run both FastAPI server and Streamlit application."""
         fastapi_task = self.run_fastapi()
         streamlit_task = asyncio.create_task(asyncio.to_thread(self.run_streamlit))
-        
+
         return await asyncio.gather(fastapi_task, streamlit_task)
-        
+
     def run_sync(self, title="Streamlit Chatbot Interface"):
         """Run Streamlit synchronously."""
         self.run_streamlit(title)
 
     @staticmethod
-    def send_input(user_input, chat_id, message_id) -> Tuple[Union[requests.Response, str], Optional[str]]:
+    def send_input(
+        user_input, chat_id, message_id
+    ) -> Tuple[Union[requests.Response, str], Optional[str]]:
         """Send user input to the FastAPI server."""
         logger.info(f"Sending user input for chat_id: {chat_id}")
         logger.debug(f"posting to http://{HOST}:{PORT}/input")
         try:
             # Create metadata with message_id
             metadata = Metadata().add("message_id", message_id)
-            
+
             # Create request using the class method
             agent_request = AgentRequest.text(
-                chat_id=str(chat_id),
-                message=user_input,
-                metadata=metadata
+                chat_id=str(chat_id), message=user_input, metadata=metadata
             )
-            
+
             # Send request to FastAPI server
             response = requests.post(
-                # f"http://{StreamlitView.host}:{StreamlitView.port}/input", 
-                f"http://localhost:{PORT}/input", 
-                json=json.loads(agent_request.model_dump_json())
+                # f"http://{StreamlitView.host}:{StreamlitView.port}/input",
+                f"http://localhost:{PORT}/input",
+                json=json.loads(agent_request.model_dump_json()),
             )
-            
+
             if response.status_code == RequestStatus.SUCCESS.code:
                 return response
             else:
-                return f"Error: Request failed with status code {response.status_code}", None
+                return (
+                    f"Error: Request failed with status code {response.status_code}",
+                    None,
+                )
         except requests.exceptions.RequestException as e:
             logger.error(f"Network error: {e}")
             return f"Error: {str(e)}", None
@@ -142,33 +156,37 @@ class StreamlitView(RedisEnabledMixin, BaseView):
         """Get AI response from the FastAPI server."""
         logger.info(f"Getting response for chat_id: {chat_id}")
         try:
-            response = requests.get(f"http://{HOST}:{PORT}/get_response?chat_id={chat_id}")
-            
+            response = requests.get(
+                f"http://{HOST}:{PORT}/get_response?chat_id={chat_id}"
+            )
+
             if response.status_code == RequestStatus.SUCCESS.code:
                 data = response.json()
-                
-                if data['status'] == RequestStatus.SUCCESS.value:
+
+                if data["status"] == RequestStatus.SUCCESS.value:
                     # Parse response as AgentResponse if available
-                    if 'ai_response' in data and isinstance(data['ai_response'], dict):
-                        return AgentResponse.model_validate(data['ai_response'])
-                    
+                    if "ai_response" in data and isinstance(data["ai_response"], dict):
+                        return AgentResponse.model_validate(data["ai_response"])
+
                     # Create new AgentResponse with message only
                     metadata = Metadata().add("message_id", str(uuid.uuid4()))
-                    
+
                     return AgentResponse(
                         chat_id=str(chat_id),
-                        message=data.get('ai_response'),
+                        message=data.get("ai_response"),
                         status=RequestStatus.SUCCESS,
-                        metadata=metadata
+                        metadata=metadata,
                     )
-                
+
                 # Return pending response
                 return AgentResponse.pending(chat_id=str(chat_id))
-            
+
             # Return error response for non-200 status codes
-            metadata = Metadata().add("error", f"Unexpected status code {response.status_code}")
+            metadata = Metadata().add(
+                "error", f"Unexpected status code {response.status_code}"
+            )
             return AgentResponse.error(chat_id=str(chat_id), metadata=metadata)
-            
+
         except Exception as e:
             logger.error(f"Error getting response: {e}")
             metadata = Metadata().add("error", str(e))
@@ -180,10 +198,10 @@ class StreamlitView(RedisEnabledMixin, BaseView):
         try:
             agent_request = AgentRequest.delete_history()
             response = requests.post(
-                f"http://{HOST}:{PORT}/delete_all_history", 
-                json=json.loads(agent_request.model_dump_json())
+                f"http://{HOST}:{PORT}/delete_all_history",
+                json=json.loads(agent_request.model_dump_json()),
             )
-            
+
             if response.status_code == RequestStatus.SUCCESS.code:
                 return "History deleted successfully"
             else:
@@ -198,10 +216,10 @@ class StreamlitView(RedisEnabledMixin, BaseView):
         try:
             agent_request = AgentRequest.delete_entries_by_chat_id(chat_id=str(chat_id))
             response = requests.post(
-                f"http://{HOST}:{PORT}/delete_chat", 
-                json=json.loads(agent_request.model_dump_json())
+                f"http://{HOST}:{PORT}/delete_chat",
+                json=json.loads(agent_request.model_dump_json()),
             )
-            
+
             if response.status_code == RequestStatus.SUCCESS.code:
                 return "Chat deleted successfully"
             else:
