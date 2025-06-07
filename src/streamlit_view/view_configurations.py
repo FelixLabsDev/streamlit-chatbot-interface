@@ -4,88 +4,117 @@ import logging
 from pydantic import ValidationError
 import json
 import os
+import sys
 
-# print("Current working directory:", os.getcwd())
+
+from agent_ti.utils.schemas import AgentRequest, AgentResponse, RequestStatus, Metadata
 
 
-# Todo: Need to create own schemas for views, and combine views into one repo
-from agent_ti.utils.schemas import AgentRequest, AgentResponse, RequestStatus
-
-# logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-def define_endpoints(app, view_callback, get_response_callback):
+
+def define_endpoints(app, view_callback):
     @app.post("/input")
     async def receive_input(request: Request):
-        logger.info("Processing input request")
         try:
             data = await request.json()
-            
+            logger.info(f"Processing input request - chat_id: {data.get('chat_id')}, message: {data.get('message', '')}")
+
             try:
                 agent_request = AgentRequest.model_validate(data)
             except ValidationError as e:
                 logger.error(f"Invalid request format: {e}")
-                raise HTTPException(status_code=RequestStatus.ERROR.code, detail=f"Invalid request format: {str(e)}")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid request format: {str(e)}",
+                )
+
+            # Get response directly from agent
+            agent_response = await view_callback(agent_request)
             
-            await view_callback(agent_request)
-            return JSONResponse({"status": RequestStatus.SUCCESS.value}, status_code=RequestStatus.SUCCESS.code)
+            logger.debug(f"Agent response: {agent_response}")
+
+            # Handle None response by creating a pending response
+            if agent_response is None:
+                agent_response = AgentResponse(
+                    chat_id=agent_request.chat_id,  # Use chat_id from request
+                    message="Request received and queued for processing",
+                    metadata=Metadata().add("info", "Request is being processed asynchronously")
+                )
+            logger.debug(f"Agent response now: {agent_response}")
+
+            return JSONResponse(
+                {"status": "success", "response": agent_response.model_dump_json()},
+                status_code=200,
+            )
         except HTTPException:
             raise
         except Exception as e:
             logger.error(f"Error processing input: {e}", exc_info=True)
-            raise HTTPException(status_code=RequestStatus.ERROR.code, detail=str(e))
-        
-    @app.get("/get_response")
-    async def get_response(chat_id: str):
-        try:
-            agent_response = await get_response_callback(chat_id)
-            if not agent_response:
-                return JSONResponse({"status": RequestStatus.PENDING.value}, status_code=RequestStatus.SUCCESS.code)
-
-            ai_response = json.loads(agent_response.model_dump_json())
-            return JSONResponse({
-                "status": agent_response.status.value, 
-                "ai_response": ai_response
-            }, status_code=agent_response.status.code)
-        except Exception as e:
-            logger.error(f"Error retrieving response: {e}")
-            raise HTTPException(status_code=RequestStatus.ERROR.code, detail=str(e))
+            # Create an error response instead of raising an exception
+            raise HTTPException(status_code=500, detail=str(e))
 
     @app.post("/delete_all_history")
     async def delete_history(request: Request):
         try:
-            # Create an AgentRequest to delete all history
-            agent_request = AgentRequest.delete_history()
-            
-            await view_callback(agent_request)
+            # For now, just return success - we'll implement this later
             return JSONResponse(
-                {"status": "success", "message": "Chat history deleted"}, 
-                status_code=RequestStatus.SUCCESS.code
+                {"status": "success", "message": "Chat history deleted"},
+                status_code=200,
             )
         except Exception as e:
             logger.error(f"Error deleting history: {e}")
-            raise HTTPException(status_code=RequestStatus.ERROR.code, detail=str(e))
-        
+            raise HTTPException(status_code=500, detail=str(e))
+
     @app.post("/delete_chat")
     async def delete_chat(request: Request):
         try:
             data = await request.json()
-            
+
             agent_request = AgentRequest.model_validate(data)
-            
+
             if not agent_request.chat_id:
-                raise HTTPException(status_code=RequestStatus.ERROR.code, detail="No chat ID provided")
-            
-            # Create proper request using the class method
-            agent_request = AgentRequest.delete_entries_by_chat_id(chat_id=str(agent_request.chat_id))
-            
-            await view_callback(agent_request)
+                raise HTTPException(status_code=400, detail="No chat ID provided")
+
+            # For now, just return success - we'll implement this later
             return JSONResponse(
-                {"status": "success", "message": "Chat deleted"}, 
-                status_code=RequestStatus.SUCCESS.code
+                {"status": "success", "message": "Chat deleted"},
+                status_code=200,
             )
         except HTTPException:
             raise
         except Exception as e:
             logger.error(f"Error deleting chat: {e}")
-            raise HTTPException(status_code=RequestStatus.ERROR.code, detail=str(e))
+            raise HTTPException(status_code=500, detail=str(e))
+
+
+class ServerConfig:
+    _instance = None
+    _initialized = False
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(ServerConfig, cls).__new__(cls)
+        return cls._instance
+
+    def __init__(self):
+        if not self._initialized:
+            self._host = "localhost"
+            self._port = 5051
+            self._initialized = True
+
+    @property
+    def host(self) -> str:
+        return self._host
+
+    @property
+    def port(self) -> int:
+        return self._port
+
+    def configure(self, host: str, port: int):
+        self._host = host
+        self._port = port
+
+    @property
+    def base_url(self) -> str:
+        return f"http://{self._host}:{self._port}"

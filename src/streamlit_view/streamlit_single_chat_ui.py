@@ -1,5 +1,4 @@
 import streamlit as st
-from dotenv import load_dotenv
 import os
 import shelve
 import argparse
@@ -11,6 +10,7 @@ import random
 import time
 import csv
 import io
+from agent_ti.utils.schemas import AgentResponse
 
 # Clear any cached fragments to prevent polling
 st.cache_data.clear()
@@ -24,7 +24,6 @@ if root_dir not in sys.path:
 # Import the StreamlitView
 from streamlit_view.view import StreamlitView
 
-load_dotenv()
 
 # Configure logging
 logging.basicConfig(
@@ -56,7 +55,7 @@ def generate_chat_id():
 
 def load_chat_history():
     """Load chat history from disk."""
-    dir_path = "view_utils/.streamlit"
+    dir_path = "data/.streamlit"
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
 
@@ -68,7 +67,7 @@ def load_chat_history():
 
 def save_chat_history(chat_id: str, messages: list):
     """Save chat history to disk."""
-    with shelve.open("view_utils/.streamlit/single_chat_history") as db:
+    with shelve.open("data/.streamlit/single_chat_history") as db:
         db["chat_id"] = chat_id
         db["messages"] = messages
 
@@ -112,48 +111,6 @@ def clear_chat_history():
     StreamlitView.delete_all_history()
 
     logger.info(f"Chat history cleared, new chat ID: {chat_id}")
-
-
-def check_for_ai_response():
-    """Check for AI response and update chat if found."""
-    try:
-        # Fetch messages from backend - returns AgentResponse
-        agent_response = StreamlitView.get_response(st.session_state.chat_id)
-        logger.info(f"Response: {agent_response}")
-
-        # Check the status of the AgentResponse
-        if agent_response.is_error:
-            # Error occurred
-            logger.error(
-                f"Error response: {agent_response.metadata.values.get('error', 'Unknown error')}"
-            )
-            return False
-
-        if agent_response.is_pending:
-            # Response is still pending
-            logger.info("Response is pending")
-            return False
-
-        # Process successful AgentResponse
-        if agent_response.is_success:
-            ai_message = agent_response.message
-
-            # Add the AI response to the chat
-            st.session_state.messages.append(
-                {"role": "assistant", "content": ai_message}
-            )
-            logger.info(
-                f"AI response for chat {st.session_state.chat_id}: {ai_message}"
-            )
-
-            # Save chat history after receiving AI response
-            save_chat_history(st.session_state.chat_id, st.session_state.messages)
-
-            return True
-
-    except Exception as e:
-        logger.error(f"Error fetching messages: {e}")
-        return False
 
 
 # Initialize session state
@@ -208,31 +165,39 @@ if prompt := st.chat_input("How can I help?"):
     with st.chat_message("user", avatar=USER_AVATAR):
         st.markdown(prompt)
 
-    # Send the input
+    # Send the input and get immediate response
     logger.info(f"Sending input to the model: {prompt}, {st.session_state.chat_id}")
     message_id = str(uuid.uuid4())
 
-    # Send input to the model
-    response = StreamlitView.send_input(prompt, st.session_state.chat_id, message_id)
+    # Get response directly from agent
+    with st.spinner("Thinking..."):
+        agent_response = StreamlitView.send_message(
+            prompt,
+            st.session_state.chat_id,
+            message_id,
+        )
+
+    # Process the response
+    if isinstance(agent_response, AgentResponse):
+        # Add the AI message to chat history
+        st.session_state.messages.append(
+            {"role": "assistant", "content": agent_response.message}
+        )
+        logger.info(
+            f"AI response for chat {st.session_state.chat_id}: {agent_response.message}"
+        )
+
+        # Display the AI response
+        with st.chat_message("assistant", avatar=BOT_AVATAR):
+            st.markdown(agent_response.message)
+    else:
+        # Handle error string
+        error_msg = str(agent_response)
+        logger.error(f"Error response: {error_msg}")
+        st.error(f"Error: {error_msg}")
 
     # Save chat history
     save_chat_history(st.session_state.chat_id, st.session_state.messages)
 
-# Check for AI response
-response_received = check_for_ai_response()
-if response_received:
-    st.rerun()
-
-
-# Auto-refresh to check for responses every 2 seconds
-@st.fragment(run_every=2)
-def auto_check_responses():
-    response_received = check_for_ai_response()
-    if response_received:
-        st.rerun()
-
-
-auto_check_responses()
-
-# Save chat history
+# Save chat history at the end
 save_chat_history(st.session_state.chat_id, st.session_state.messages)
