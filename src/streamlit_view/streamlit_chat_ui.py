@@ -87,7 +87,7 @@ def generate_short_uuid():
 
 
 def load_chat_history():
-    dir_path = "data/.streamlit"
+    dir_path = "data/chats/.streamlit"
 
     # Create the directory if it doesn't exist
     if not os.path.exists(dir_path):
@@ -99,7 +99,7 @@ def load_chat_history():
 
 # Save chat history to shelve file
 def save_chat_history(chats, current_chat_id):
-    with shelve.open("data/.streamlit/chat_history") as db:
+    with shelve.open("data/chats/.streamlit/chat_history") as db:
         db["chats"] = chats
         db["current_chat_id"] = current_chat_id
 

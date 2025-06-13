@@ -55,7 +55,7 @@ def generate_chat_id():
 
 def load_chat_history():
     """Load chat history from disk."""
-    dir_path = "data/.streamlit"
+    dir_path = "data/chats/.streamlit"
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
 
@@ -67,7 +67,7 @@ def load_chat_history():
 
 def save_chat_history(chat_id: str, messages: list):
     """Save chat history to disk."""
-    with shelve.open("data/.streamlit/single_chat_history") as db:
+    with shelve.open("data/chats/.streamlit/single_chat_history") as db:
         db["chat_id"] = chat_id
         db["messages"] = messages
 

@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="streamlit_view",
-    version="3.2.0",
+    version="3.2.1",
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     include_package_data=True,  # Include non-code files specified in MANIFEST.in (optional)
