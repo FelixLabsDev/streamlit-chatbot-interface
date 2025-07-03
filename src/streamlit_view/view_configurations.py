@@ -7,7 +7,7 @@ import os
 import sys
 
 
-from agent_ti.utils.schemas import AgentRequest, AgentResponse, RequestStatus, Metadata
+from common_utils.schemas import AgentRequest, AgentResponse, RequestStatus
 
 
 logger = logging.getLogger(__name__)
@@ -39,7 +39,6 @@ def define_endpoints(app, view_callback):
                 agent_response = AgentResponse(
                     chat_id=agent_request.chat_id,  # Use chat_id from request
                     message="Request received and queued for processing",
-                    metadata=Metadata().add("info", "Request is being processed asynchronously")
                 )
             logger.debug(f"Agent response now: {agent_response}")
 

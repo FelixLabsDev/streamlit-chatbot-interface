@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "streamlit_view"
+version = "3.2.1"
+description = "Streamlit chat interface"
+dependencies = [
+    "streamlit",
+    "python-dotenv",
+]
+
+[project.scripts]
+streamlit-chat-ui = "streamlit_view.streamlit_chat_ui:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src" 

@@ -10,7 +10,7 @@ import random
 import time
 import csv
 import io
-from agent_ti.utils.schemas import AgentResponse
+from common_utils.schemas import AgentResponse
 
 # Clear any cached fragments to prevent polling
 st.cache_data.clear()
@@ -25,10 +25,8 @@ if root_dir not in sys.path:
 from streamlit_view.view import StreamlitView
 
 
-# Configure logging
-logging.basicConfig(
-    level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+# Note: Logging is already configured by the main application
+# We just get a logger instance here to avoid overriding the main config
 logger = logging.getLogger(__name__)
 
 # Argument parser to handle command-line arguments

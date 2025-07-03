@@ -14,7 +14,7 @@ import random
 import time
 import csv
 import io
-from agent_ti.utils.schemas import AgentResponse
+from common_utils.schemas import AgentResponse
 
 # Clear any cached fragments to prevent polling
 st.cache_data.clear()

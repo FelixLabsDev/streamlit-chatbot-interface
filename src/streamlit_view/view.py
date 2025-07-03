@@ -11,10 +11,9 @@ from fastapi import FastAPI
 from streamlit_view.view_configurations import define_endpoints, ServerConfig
 
 # Todo: Need to create own schemas for views, and combine views into one repo
-from agent_ti.utils.schemas import AgentRequest, AgentResponse, RequestStatus, Metadata
-from view_utils.view_abc import BaseView
-
-from utils.logging_config import get_logger
+from common_utils.schemas import AgentRequest, AgentResponse, RequestStatus
+from common_utils.view.view_abc import BaseView
+from common_utils.logging import get_logger
 
 # Load configuration first
 
@@ -107,26 +106,21 @@ class StreamlitView(BaseView):
         return await asyncio.gather(fastapi_task, streamlit_task)
 
     @staticmethod
-    def send_message(
-        user_input, chat_id, message_id
-    ) -> Union[AgentResponse, str]:
+    def send_message(chat_id: str, message: str) -> Union[AgentResponse, str]:
         """Send user input to the FastAPI server and return a proper AgentResponse."""
         logger.info(f"Sending user input for chat_id: {chat_id}")
         server_config = ServerConfig()
         logger.debug(f"posting to {server_config.base_url}/input")
         try:
             # Create metadata with message_id
-            metadata = Metadata().add("message_id", message_id)
-
-            # Create request using the class method
-            agent_request = AgentRequest.text(
-                chat_id=str(chat_id), message=user_input, metadata=metadata
+            request = AgentRequest.text(
+                chat_id=str(chat_id), message=user_input
             )
 
             # Send request to FastAPI server
             response = requests.post(
                 f"{server_config.base_url}/input",
-                json=json.loads(agent_request.model_dump_json()),
+                json=json.loads(request.model_dump_json()),
             )
 
             if response.status_code == RequestStatus.SUCCESS.code:
